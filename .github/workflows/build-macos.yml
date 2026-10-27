@@ -12,14 +12,14 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+	- name: Install dependencies
         run: |
-          brew install gfortran lapack
+          brew install gfortran
 
       - name: Build Atomsk
         run: |
           cd src
-          make -f Makefile.macos -j3 atomsk
+          make -f Makefile.macos -j3 atomsk LAPACK="-framework Accelerate"
 
       - name: Verify binary architecture
         run: |
