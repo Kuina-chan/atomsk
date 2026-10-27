@@ -12,7 +12,7 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
-	- name: Install dependencies
+      - name: Install dependencies
         run: |
           brew install gfortran
 
