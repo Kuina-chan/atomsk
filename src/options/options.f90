@@ -35,7 +35,7 @@ MODULE options
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 14 Sept. 2026                                    *
+!* Last modification: P. Hirel - 12 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -122,11 +122,13 @@ CHARACTER(LEN=4096):: temp, msg
 CHARACTER(LEN=4096),DIMENSION(10):: treal !text containing a real number and maybe a word
 CHARACTER(LEN=128),DIMENSION(:),ALLOCATABLE:: options_array !options and their parameters
 CHARACTER(LEN=128),DIMENSION(:),ALLOCATABLE:: AUXNAMES !names of auxiliary properties
+CHARACTER(LEN=32),DIMENSION(:),ALLOCATABLE::  substr
 LOGICAL:: fileexists !does a file exist?
-INTEGER:: i, ioptions, j
+INTEGER:: i, ioptions, j, k
 INTEGER:: status
 INTEGER:: strlength
 REAL(dp):: tempreal !temporary real number
+REAL(dp),DIMENSION(3):: vector
 REAL(dp),DIMENSION(3,3):: Huc !Base vectors of the unit cell
 REAL(dp),DIMENSION(3,3):: H   !Base vectors of the supercell
 REAL(dp),DIMENSION(3,3):: HS  !Copy of H for shells
@@ -378,7 +380,10 @@ DO ioptions=1,SIZE(options_array)
     CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
   ENDIF
   !
-  READ(options_array(ioptions),*,END=1000,ERR=1000) optionname
+  !READ(options_array(ioptions),*,END=1000,ERR=1000) optionname
+  optionname = options_array(ioptions)
+  j = SCAN(optionname," ")
+  optionname = TRIM(optionname(1:j))
   optionname = TRIM(ADJUSTL(optionname))
   IF(optionname=='') EXIT
   HS=H
@@ -393,13 +398,21 @@ DO ioptions=1,SIZE(options_array)
     CONTINUE
     !
   CASE('-add-atom','-add-atoms','-addatom','-addatoms')
-    READ(options_array(ioptions),*,END=800,ERR=800) optionname, addatom_species, &
-        & addatom_type
+    !READ(options_array(ioptions),*,END=800,ERR=800) optionname, addatom_species, addatom_type
+    k=0
+    CALL STRCUT(options_array(ioptions),' ',substr)
+    addatom_species = TRIM(substr(2))
+    addatom_type = TRIM(substr(3))
     IF( addatom_type=="at" .OR. addatom_type=="AT" .OR. addatom_type=="@" ) THEN
+      !"-add-atom species at x y z"
       !Read coordinates x, y, z of atom to add
       !Can be real numbers or fractional coordinates with the keyword "box"
-      READ(options_array(ioptions),*,END=800,ERR=800) optionname, addatom_species, &
-        & addatom_type, treal(1), treal(2), treal(3)
+      !READ(options_array(ioptions),*,END=800,ERR=800) optionname, addatom_species, &
+      !  & addatom_type, treal(1), treal(2), treal(3)
+      IF( SIZE(substr)<6 ) GOTO 800
+      treal(1) = TRIM(substr(4))
+      treal(2) = TRIM(substr(5))
+      treal(3) = TRIM(substr(6))
       CALL BOX2DBLE( H(:,1) , treal(1) , addatom_prop(1) , status )
       IF(status>0) THEN
         temp = treal(1)
@@ -416,12 +429,17 @@ DO ioptions=1,SIZE(options_array)
         GOTO 810
       ENDIF
     ELSEIF( addatom_type=="relative" .OR. addatom_type=="rel" ) THEN
+      !"-add-atom species relative id"
       !Read index of atom near which the new atom must be added
       !and relative coordinates x, y, z of atom to add
       !Can be real numbers or fractional coordinates with the keyword "box"
-      READ(options_array(ioptions),*,END=800,ERR=800) optionname, addatom_species, &
-        & addatom_type, j, treal(1), treal(2), treal(3)
-      addatom_prop(1) = DBLE(j)
+      !READ(options_array(ioptions),*,END=800,ERR=800) optionname, addatom_species, &
+      !  & addatom_type, j, treal(1), treal(2), treal(3)
+      IF( SIZE(substr)<7 ) GOTO 800
+      READ(substr(4),*,END=800,ERR=800) addatom_prop(1)
+      treal(1) = TRIM(substr(5))
+      treal(2) = TRIM(substr(6))
+      treal(3) = TRIM(substr(7))
       CALL BOX2DBLE( H(:,1) , treal(1) , addatom_prop(2) , status )
       IF(status>0) THEN
         temp = treal(1)
@@ -440,10 +458,13 @@ DO ioptions=1,SIZE(options_array)
     ELSEIF( addatom_type=="near" .OR. addatom_type=="NEAR" .OR.      &
           & addatom_type=="random" .OR. addatom_type=="RANDOM" .OR.  &
           & addatom_type=="rand" .OR. addatom_type=="RAND"           ) THEN
+      !"-add-atom species near id"
+      !"-add-atom species random N"
       !Read index of atom near which the new atom must be added,
       !or the number of atoms to insert randomly
-      READ(options_array(ioptions),*,END=800,ERR=800) optionname, addatom_species, &
-        & addatom_type, addatom_prop(1)
+      !READ(options_array(ioptions),*,END=800,ERR=800) optionname, addatom_species, &
+      !  & addatom_type, addatom_prop(1)
+      READ(substr(4),*,END=800,ERR=800) addatom_prop(1)
     ELSE
       nerr=nerr+1
       GOTO 1000
@@ -451,6 +472,7 @@ DO ioptions=1,SIZE(options_array)
     CALL ADDATOM_XYZ(H,P,S,AUXNAMES,AUX,addatom_species,addatom_type,addatom_prop,SELECT)
   !
   CASE('-add-shells','-addshells','-as')
+    !"-add-shells species"
     READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp
     IF(temp=='all') THEN
       cs_species = 'XX'
@@ -466,7 +488,13 @@ DO ioptions=1,SIZE(options_array)
     CALL BSHELLS_XYZ(H,P,S,AUXNAMES,AUX,SELECT)
   !
   CASE('-cell','-box','change_cell','change_box')
-    READ(options_array(ioptions),*,END=800,ERR=800) optionname, celldir, cellop, treal(1)
+    !"-cell <X|Y|Z> <add|rm|set> <d>"
+    !READ(options_array(ioptions),*,END=800,ERR=800) optionname, celldir, cellop, treal(1)
+    CALL STRCUT(options_array(ioptions),' ',substr)
+    IF( SIZE(substr)<4 ) GOTO 800
+    celldir = TRIM(substr(2))
+    cellop = TRIM(substr(3))
+    treal(1) = TRIM(substr(4))
     SELECT CASE(StrDnCase(celldir))
     CASE('a','x',"xx","xy","xz")
       CALL BOX2DBLE( H(:,1) , treal(1) , celllength , status )
@@ -490,8 +518,20 @@ DO ioptions=1,SIZE(options_array)
     CALL CENTER_XYZ(H,P,S,center_atom,SELECT)
   !
   CASE('-crack')
-    READ(options_array(ioptions),*,END=800,ERR=800) optionname, crackmode, &
-        & cracktype, crackK, treal(1), treal(2), crackline, crackplane, mu, nu
+    !"-crack <I|II|III> <stress|strain> <Ks> <p1> <p2> <line> <normal> <mu> <nu>"
+    !READ(options_array(ioptions),*,END=800,ERR=800) optionname, crackmode, &
+    !    & cracktype, crackK, treal(1), treal(2), crackline, crackplane, mu, nu
+    CALL STRCUT(options_array(ioptions),' ',substr)
+    IF( SIZE(substr)<10 ) GOTO 800
+    crackmode = TRIM(substr(2))
+    cracktype = TRIM(substr(3))
+    READ(substr(4),*,END=800,ERR=800) crackK
+    treal(1) = TRIM(substr(5))
+    treal(2) = TRIM(substr(6))
+    crackline = TRIM(substr(7))
+    crackplane = TRIM(substr(8))
+    READ(substr(9),*,END=800,ERR=800) mu
+    READ(substr(10),*,END=800,ERR=800) nu
     CALL BOX2DBLE( H(:,1) , treal(1) , pos(1) , status )
     IF(status>0) THEN
       temp = treal(1)
@@ -505,21 +545,42 @@ DO ioptions=1,SIZE(options_array)
     CALL CRACK_XYZ(H,P,S,crackmode,cracktype,crackK,crackline,crackplane,mu,nu,pos(1),pos(2),SELECT,AUXNAMES,AUX)
   !
   CASE('-cut')
+    !"-cut <above|below> <d> <normal>"
     cut_dir = TRIM(ADJUSTL(options_array(ioptions)(5:)))
     IF( cut_dir(1:5)=='above' .OR. cut_dir(1:5)=='below' ) THEN
-      READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
-          & cut_dir, treal(1), cutdir
+      !READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
+      !    & cut_dir, treal(1), cutdir
+      CALL STRCUT(options_array(ioptions),' ',substr)
+      IF( SIZE(substr)<4 ) GOTO 800
+      cut_dir = TRIM(substr(2))
+      treal(1) = TRIM(substr(3))
+      cutdir = TRIM(substr(4))
       !Check if numbers contain a keyword like "BOX" or "INF"
       i=1
       SELECT CASE(cutdir)
       CASE('x','X')
-        i=1
+        CALL BOX2DBLE( H(:,1) , treal(1) , cutdistance , status )
       CASE('y','Y')
-        i=2
+        CALL BOX2DBLE( H(:,2) , treal(1) , cutdistance , status )
       CASE('z','Z')
-        i=3
+        CALL BOX2DBLE( H(:,3) , treal(1) , cutdistance , status )
+      CASE DEFAULT
+        !Should be Miller indices
+        CALL MILLER2VEC(H,cutdir,ORIENT,addatom_prop(:),j)
+        IF(j>0) THEN
+          !Other error, unable to convert this string into a proper vector
+          CALL ATOMSK_MSG(817,(/TRIM(cutdir)/),(/0.d0/))
+          GOTO 1000
+        ENDIF
+        !Check that vector is not [000]
+        IF( VECLENGTH(addatom_prop)<1.d-12 ) THEN
+          CALL ATOMSK_MSG(814,(/""/),(/0.d0/))
+          nerr=nerr+1
+          GOTO 1000
+        ENDIF
+        vector(:) = addatom_prop(1)*H(1,:) + addatom_prop(2)*H(2,:) + addatom_prop(2)*H(3,:)
+        CALL BOX2DBLE( vector(:) , treal(1) , cutdistance , status )
       END SELECT
-      CALL BOX2DBLE( H(:,i) , treal(1) , cutdistance , status )
       IF(status>0) THEN
         temp = treal(1)
         GOTO 810
@@ -530,9 +591,19 @@ DO ioptions=1,SIZE(options_array)
     CALL CUTCELL(H,P,S,AUX,cut_dir,cutdistance,cutdir,ORIENT,SELECT)
   !
   CASE('-def', '-deform')
+    !"-deform <x|y|z> <def> [<nu>]"
+    !"-deform <xy|xz|yz|yx|zx|zy> <def>"
     j=0
     def_poisson = 0.d0
-    READ(options_array(ioptions),*,END=800,ERR=800) optionname, def_dir, temp
+    !READ(options_array(ioptions),*,END=800,ERR=800) optionname, def_dir, temp
+    CALL STRCUT(options_array(ioptions),' ',substr)
+    IF( SIZE(substr)<3 ) GOTO 800
+    def_dir = TRIM(substr(2))
+    temp = TRIM(substr(3))
+    IF( SIZE(substr)>=4 ) THEN
+      !User provided a Poisson ratio
+      READ(substr(4),*,END=800,ERR=800) def_poisson
+    ENDIF
     IF( temp=="untilt" .OR. temp=="unshear" ) THEN
       !Set the shear strain to untilt the box
       SELECT CASE(StrDnCase(def_dir))
@@ -552,7 +623,7 @@ DO ioptions=1,SIZE(options_array)
       !
     ELSE
       !"temp" should contain a number: read it
-      READ(temp,*,ERR=800,END=800) treal(1)
+      treal(1) = TRIM(temp)
       !treal may contain the strain expressed in percent, e.g. "3%"
       SELECT CASE(StrDnCase(def_dir))
       CASE('x')
@@ -577,9 +648,7 @@ DO ioptions=1,SIZE(options_array)
         GOTO 810
       ENDIF
     ENDIF
-    !user may have specified a Poisson ratio; if not, just skip it
-    READ(options_array(ioptions),*,END=102,ERR=102) optionname, def_dir, temp, def_poisson
-    IF( j==1 ) THEN
+    IF( def_poisson.NE.0.d0 .AND. j==1 ) THEN
       !user specified a Poisson ratio, but asked for shear strain
       !=> display warning message that value of Poisson ratio will be ignored
       CALL ATOMSK_MSG(2766,(/""/),(/0.d0/))
@@ -604,16 +673,32 @@ DO ioptions=1,SIZE(options_array)
 !    CALL DENOISE_XYZ(H,P,S,SELECT)
   !
   CASE("-dislocation","-dislo","-disloc")
+    !"-dislocation <p1> <p2> screw <line> <normal> <b>"
+    !"-dislocation <p1> <p2> <edge|edge_add|edge_rm> <line> <normal> <b> <nu>"
+    !"-dislocation <p1> <p2> mixed <line> <normal> <b1> <b2> <b3>"
+    !"-dislocation loop <x> <y> <z> <normal> <radius> <bx> <by> <bz> <nu>"
+    !"-dislocation file <file> <nu>"
     nu = 0.d0
     status=0
     !Read the first two keywords
-    READ(options_array(ioptions),*,END=800,ERR=800) optionname, treal(9), treal(10)
+    !READ(options_array(ioptions),*,END=800,ERR=800) optionname, treal(9), treal(10)
+    CALL STRCUT(options_array(ioptions),' ',substr)
     !Depending on type, read further parameters
-    IF( TRIM(ADJUSTL(treal(9)))=="loop" ) THEN
+    IF( substr(2)=="loop" ) THEN
       disloctype = "loop"
       !Read coordinates of loop center, loop radius, components of Burgers vector, and Poisson ratio
-      READ(options_array(ioptions),*,END=800,ERR=800) optionname, treal(9), &
-          & treal(1), treal(2), treal(3), dislocline, pos(4), b(1), b(2), b(3), nu
+      !READ(options_array(ioptions),*,END=800,ERR=800) optionname, treal(9), &
+      !    & treal(1), treal(2), treal(3), dislocline, pos(4), b(1), b(2), b(3), nu
+      IF( SIZE(substr)<11 ) GOTO 800
+      treal(1) = TRIM(substr(3))
+      treal(2) = TRIM(substr(4))
+      treal(3) = TRIM(substr(5))
+      dislocline = TRIM(substr(6))
+      READ(substr(7),*,END=800,ERR=800) pos(4)
+      READ(substr(8),*,END=800,ERR=800) b(1)
+      READ(substr(9),*,END=800,ERR=800) b(2)
+      READ(substr(10),*,END=800,ERR=800) b(3)
+      READ(substr(11),*,END=800,ERR=800) nu
       !Convert the treal(:) into real numbers, if they contain the keyword "box"
       DO i=1,3
         CALL BOX2DBLE( H(:,i) , treal(i) , pos(i) , status )
@@ -624,26 +709,41 @@ DO ioptions=1,SIZE(options_array)
         ENDIF
       ENDDO
       !
-    ELSEIF( TRIM(ADJUSTL(treal(9)))=="array" .OR. TRIM(ADJUSTL(treal(9)))=="file" ) THEN
+    ELSEIF( substr(2)=="array" .OR. substr(2)=="file" ) THEN
       !Save file name into dislocline
-      READ(options_array(ioptions),*,END=800,ERR=800) optionname, treal(9), treal(10), nu
-      disloctype = TRIM(ADJUSTL(treal(9)))
-      dislocline = TRIM(ADJUSTL(treal(10)))
+      !READ(options_array(ioptions),*,END=800,ERR=800) optionname, treal(9), treal(10), nu
+      IF( SIZE(substr)<4 ) GOTO 800
+      dislocline = TRIM(substr(3))
+      READ(substr(4),*,END=800,ERR=800) nu
     ELSE
-      !Read the first 3 keywords
-      READ(options_array(ioptions),*,END=800,ERR=800) optionname, treal(9), treal(10), disloctype
+      !Screw, edge, or mixed dislocation: the first 2 fields must be the dislocation position
+      IF( SIZE(substr)<7 ) GOTO 800
+      treal(9) = TRIM(substr(2))
+      treal(10) = TRIM(substr(3))
+      disloctype = TRIM(substr(4))
+      !READ(options_array(ioptions),*,END=800,ERR=800) optionname, treal(9), treal(10), disloctype
       IF( disloctype=="mixed" ) THEN
         !Read the three components of Burgers vector
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
-            & treal(9), treal(10), disloctype, dislocline, dislocplane, b(1), b(2), b(3)
+        !READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
+        !    & treal(9), treal(10), disloctype, dislocline, dislocplane, b(1), b(2), b(3)
+        IF( SIZE(substr)<9 ) GOTO 800
+        dislocline = TRIM(substr(5))
+        dislocplane = TRIM(substr(6))
+        READ(substr(7),*,END=800,ERR=800) b(1)
+        READ(substr(8),*,END=800,ERR=800) b(2)
+        READ(substr(9),*,END=800,ERR=800) b(3)
       ELSE
         !Only the norm of the Burgers vector is given
         !Construct the complete Burgers vector b(:)
         b(:) = 0.d0
         IF(disloctype=="screw") THEN
           !don't attempt to read nu
-          READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
-              & treal(9), treal(10), disloctype, dislocline, dislocplane, tempreal
+          !READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
+          !    & treal(9), treal(10), disloctype, dislocline, dislocplane, tempreal
+          IF( SIZE(substr)<7 ) GOTO 800
+          dislocline = TRIM(substr(5))
+          dislocplane = TRIM(substr(6))
+          READ(substr(7),*,END=800,ERR=800) tempreal
           !only one component is given, the one along dislocline
           SELECT CASE(dislocline)
           CASE("x","X")
@@ -656,8 +756,13 @@ DO ioptions=1,SIZE(options_array)
         ELSEIF(disloctype(1:4)=="edge") THEN
           !(it may be edge, edge_add or edge_rm)
           !Edge character => read nu
-          READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
-              & treal(9), treal(10), disloctype, dislocline, dislocplane, tempreal, nu
+          !READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
+          !    & treal(9), treal(10), disloctype, dislocline, dislocplane, tempreal, nu
+          IF( SIZE(substr)<8 ) GOTO 800
+          dislocline = TRIM(substr(5))
+          dislocplane = TRIM(substr(6))
+          READ(substr(7),*,END=800,ERR=800) tempreal
+          READ(substr(8),*,END=800,ERR=800) nu
           !only one component is given, normal to dislocline and plane of cut
           SELECT CASE(dislocline)
           CASE("x","X")
@@ -686,7 +791,7 @@ DO ioptions=1,SIZE(options_array)
           !Error: unknown dislocation type
           GOTO 800
         ENDIF
-      ENDIF
+      ENDIF  !en if "mixed, "screw"
       !Check if numbers contain a keyword like "BOX" or "INF"
       SELECT CASE(dislocplane)
       CASE('x','X')
@@ -725,44 +830,6 @@ DO ioptions=1,SIZE(options_array)
       !Convert strings containing "box" with appropriate box dimension
       CALL BOX2DBLE( H(:,i) , treal(i) , pos(1) , status )
       CALL BOX2DBLE( H(:,j) , treal(j) , pos(2) , status )
-!       WRITE(msg,*) "  (1) Input position:   "//TRIM(treal(i))
-!       CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
-!       IF( INDEX(treal(i),"box")>0 ) THEN
-!         !Replace the keyword "box" by its appropriate value, save it in pos(1)
-!         tempreal = MAX(0.d0,MAXVAL(H(:,i))) + DABS(MIN(0.d0,MINVAL(H(:,i))))
-!         CALL STR_EXP2VAL(treal(i),"box",tempreal,strlength)
-!         WRITE(msg,*) "  (1) Converted string: "//TRIM(treal(i))
-!         CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
-!       ENDIF
-!       !Evaluate expression to obtain a real value
-!       strlength=0
-!       CALL EXPREVAL(treal(i),pos(1),strlength,status)
-!       IF(status>0) THEN
-!         temp = treal(i)
-!         nerr=nerr+1
-!         GOTO 810
-!       ENDIF
-!       WRITE(msg,*) "  (1) pos (angs) =      ", pos(1)
-!       CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
-!       WRITE(msg,*) "  (2) Input position:   "//TRIM(treal(j))
-!       CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
-!       IF( INDEX(treal(j),"box")>0 ) THEN
-!         !Replace the keyword "box" or "BOX" by its appropriate value
-!         tempreal = MAX(0.d0,MAXVAL(H(:,j))) + DABS(MIN(0.d0,MINVAL(H(:,j))))
-!         CALL STR_EXP2VAL(treal(j),"box",tempreal,strlength)
-!         WRITE(msg,*) "  (2) Converted string: "//TRIM(treal(j))
-!         CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
-!       ENDIF
-!       !Evaluate expression to obtain a real value, save it in pos(2)
-!       strlength=0
-!       CALL EXPREVAL(treal(j),pos(2),strlength,status)
-!       IF(status>0) THEN
-!         temp = treal(j)
-!         nerr=nerr+1
-!         GOTO 810
-!       ENDIF
-!       WRITE(msg,*) "  (2) pos (angs) =      ", pos(2)
-!       CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
     ENDIF
     CALL DISLOC_XYZ(H,P,S,disloctype,dislocline,dislocplane,b,nu,pos,SELECT,ORIENT,AUXNAMES,AUX,C_tensor)
   !
@@ -783,29 +850,51 @@ DO ioptions=1,SIZE(options_array)
     ENDIF
     CALL DISTURB_XYZ(P,S,SELECT,j,dist_dmax)
   !
-  CASE('-duplicate', '-dup', '-e', '-expand')
+  CASE('-duplicate', '-dup', '-e', '-expand','-replicate')
     READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
         & dupmatrix(1), dupmatrix(2), dupmatrix(3)
     CALL DUPLICATECELL(H,P,S,dupmatrix,SELECT,AUX)
   !
   CASE('-fix','-freeze')
-    READ(options_array(ioptions),*,END=800,ERR=800) optionname, freeze_coord
-    strlength = LEN_TRIM(optionname) + LEN_TRIM(freeze_coord)
-    IF( LEN_TRIM(options_array(ioptions)) > strlength+2 ) THEN
-      READ(options_array(ioptions),*,END=800,ERR=800) optionname, freeze_coord, freeze_side
-    ENDIF
-    IF( freeze_side(1:5)=="above" .OR. freeze_side(1:5)=="below" ) THEN
-      READ(options_array(ioptions),*,END=800,ERR=800) optionname, freeze_coord, freeze_side, treal(1), freeze_normal
+    !"-freeze <x|y|z|xy|xz|yz|xyz> [<above|below> <d> <x|y|z>]"
+    !READ(options_array(ioptions),*,END=800,ERR=800) optionname, freeze_coord
+    !strlength = LEN_TRIM(optionname) + LEN_TRIM(freeze_coord)
+    !IF( LEN_TRIM(options_array(ioptions)) > strlength+2 ) THEN
+    !  READ(options_array(ioptions),*,END=800,ERR=800) optionname, freeze_coord, freeze_side
+    !ENDIF
+    CALL STRCUT(options_array(ioptions),' ',substr)
+    IF(SIZE(substr)<2) GOTO 800
+    freeze_coord = TRIM(substr(2))
+    IF( SIZE(substr)>=5 ) THEN
+      !READ(options_array(ioptions),*,END=800,ERR=800) optionname, freeze_coord, freeze_side, treal(1), freeze_normal
+      freeze_side = TRIM(substr(3))
+      treal(1) = TRIM(substr(4))
+      freeze_normal = TRIM(substr(5))
       !Check if treal(1) contains a keyword like "BOX" or "INF"
-      SELECT CASE(StrDnCase(freeze_coord))
+      SELECT CASE(StrDnCase(freeze_normal))
       CASE('x')
-        i=1
+        CALL BOX2DBLE( H(:,1) , treal(1) , freeze_dist , status )
       CASE('y')
-        i=2
+        CALL BOX2DBLE( H(:,2) , treal(1) , freeze_dist , status )
       CASE('z')
-        i=3
+        CALL BOX2DBLE( H(:,3) , treal(1) , freeze_dist , status )
+      CASE DEFAULT
+        !Should be Miller indices
+        CALL MILLER2VEC(H,freeze_normal,ORIENT,addatom_prop(:),j)
+        IF(j>0) THEN
+          !Other error, unable to convert this string into a proper vector
+          CALL ATOMSK_MSG(817,(/TRIM(freeze_normal)/),(/0.d0/))
+          GOTO 1000
+        ENDIF
+        !Check that vector is not [000]
+        IF( VECLENGTH(addatom_prop)<1.d-12 ) THEN
+          CALL ATOMSK_MSG(814,(/""/),(/0.d0/))
+          nerr=nerr+1
+          GOTO 1000
+        ENDIF
+        vector(:) = addatom_prop(1)*H(1,:) + addatom_prop(2)*H(2,:) + addatom_prop(2)*H(3,:)
+        CALL BOX2DBLE( vector(:) , treal(1) , freeze_dist , status )
       END SELECT
-      CALL BOX2DBLE( H(:,i) , treal(1) , freeze_dist , status )
       IF(status>0) THEN
         temp = treal(1)
         GOTO 810
@@ -820,19 +909,38 @@ DO ioptions=1,SIZE(options_array)
     CALL CART2FRAC_XYZ(H,P,S)
   !
   CASE('-mirror')
-    READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
-        & treal(1), mirror_dir
+    !"-mirror <d> <normal>"
+    !READ(options_array(ioptions),*,END=800,ERR=800) optionname, treal(1), mirror_dir
+    CALL STRCUT(options_array(ioptions),' ',substr)
+    IF(SIZE(substr)<3) GOTO 800
+    treal(1) = TRIM(substr(2))
+    mirror_dir = TRIM(substr(3))
     !Check if numbers contain a keyword like "BOX" or "INF"
     i=1
     SELECT CASE(mirror_dir)
     CASE('x','X')
-      i=1
+      CALL BOX2DBLE( H(:,1) , treal(1) , mirror_d , status )
     CASE('y','Y')
-      i=2
+      CALL BOX2DBLE( H(:,1) , treal(1) , mirror_d , status )
     CASE('z','Z')
-      i=3
+      CALL BOX2DBLE( H(:,1) , treal(1) , mirror_d , status )
+    CASE DEFAULT
+      !Should be Miller indices
+      CALL MILLER2VEC(H,mirror_dir,ORIENT,addatom_prop(:),j)
+      IF(j>0) THEN
+        !Other error, unable to convert this string into a proper vector
+        CALL ATOMSK_MSG(817,(/TRIM(mirror_dir)/),(/0.d0/))
+        GOTO 1000
+      ENDIF
+      !Check that vector is not [000]
+      IF( VECLENGTH(addatom_prop)<1.d-12 ) THEN
+        CALL ATOMSK_MSG(814,(/""/),(/0.d0/))
+        nerr=nerr+1
+        GOTO 1000
+      ENDIF
+      vector(:) = addatom_prop(1)*H(1,:) + addatom_prop(2)*H(2,:) + addatom_prop(2)*H(3,:)
+      CALL BOX2DBLE( vector(:) , treal(1) , mirror_d , status )
     END SELECT
-    CALL BOX2DBLE( H(:,i) , treal(1) , mirror_d , status )
     IF(status>0) THEN
       temp = treal(1)
       GOTO 810
@@ -924,108 +1032,114 @@ DO ioptions=1,SIZE(options_array)
     CALL ROUNDOFF_XYZ(H,P,S,AUXNAMES,AUX,temp,tempreal,SELECT)
   !
   CASE('-select')
-    select_multiple = ""
-    select_multiple = ADJUSTL( options_array(ioptions)(8:) )
-    i=SCAN(select_multiple," ")
-    select_multiple = select_multiple(:i)
+    CALL STRCUT(options_array(ioptions),' ',substr)
+    select_multiple = TRIM(substr(2))
     !READ(options_array(ioptions),*,END=800,ERR=800) optionname, select_multiple
     !Check if current selection must be combined with previous selection
+    k=1
     IF( select_multiple=="union" .OR. select_multiple=="UNION" .OR.           &
       & select_multiple=="add" .OR. select_multiple=="ADD" .OR.               &
       & select_multiple=="or" .OR. select_multiple=="OR"          ) THEN
       select_multiple = "add"
-      region_side = ADJUSTL( options_array(ioptions)(8:) ) !remove "-select"
-      i=SCAN(region_side," ")
-      region_side = ADJUSTL( region_side(i:) )             !remove keyword
-      i=SCAN(region_side," ")
-      region_side = region_side(:i)                        !keep only first string
+      region_side = TRIM(substr(3))
     ELSEIF( select_multiple=="subtract" .OR. select_multiple=="SUBTRACT" .OR.            &
           & select_multiple=="substract" .OR. select_multiple=="SUBSTRACT" .OR.          &
           & select_multiple=="delete" .OR. select_multiple=="DELETE" .OR.                &
           & select_multiple=="remove"   .OR. select_multiple=="REMOVE"   .OR.            &
           & select_multiple=="rm" .OR. select_multiple=="RM" .OR. select_multiple=="del" ) THEN
       select_multiple = "rm"
-      region_side = ADJUSTL( options_array(ioptions)(8:) ) !remove "-select"
-      i=SCAN(region_side," ")
-      region_side = ADJUSTL( region_side(i:) )             !remove keyword
-      i=SCAN(region_side," ")
-      region_side = region_side(:i)                        !keep only first string
+      region_side = TRIM(substr(3))
     ELSEIF( select_multiple=="intersect" .OR. select_multiple=="INTERSECT" .OR. &
           & select_multiple=="and" .OR. select_multiple=="AND"                 ) THEN
       select_multiple = "intersect"
-      region_side = ADJUSTL( options_array(ioptions)(8:) ) !remove "-select"
-      i=SCAN(region_side," ")
-      region_side = ADJUSTL( region_side(i:) )             !remove keyword
-      i=SCAN(region_side," ")
-      region_side = region_side(:i)                        !keep only first string
+      region_side = TRIM(substr(3))
     ELSEIF( select_multiple=="xor"  .OR. select_multiple=="XOR"  ) THEN
       select_multiple = "xor"
-      region_side = ADJUSTL( options_array(ioptions)(8:) ) !remove "-select"
-      i=SCAN(region_side," ")
-      region_side = ADJUSTL( region_side(i:) )             !remove keyword
-      i=SCAN(region_side," ")
-      region_side = region_side(:i)                        !keep only first string
+      region_side = TRIM(substr(3))
     ELSEIF( select_multiple=="among"  .OR. select_multiple=="AMONG"  ) THEN
       select_multiple = "among"
-      region_side = ADJUSTL( options_array(ioptions)(8:) ) !remove "-select"
-      i=SCAN(region_side," ")
-      region_side = ADJUSTL( region_side(i:) )             !remove keyword
-      i=SCAN(region_side," ")
-      region_side = region_side(:i)                        !keep only first string
+      region_side = TRIM(substr(3))
     ELSE
       !No keyword after "-select" => save following string in region_side
       select_multiple = ""
-      region_side = ADJUSTL( options_array(ioptions)(8:) ) !remove "-select"
-      i=SCAN(region_side," ")
-      region_side = region_side(:i)                        !keep only first string
-      !READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side
+      region_side = TRIM(substr(2))
+      k=0
     ENDIF
     !
     IF( region_side=="above" .OR. region_side=="below" ) THEN
-      IF( LEN_TRIM(select_multiple)>0 ) THEN
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, treal(1), region_dir
-      ELSE
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, treal(1), region_dir
-      ENDIF
+      !"-select <above|below> <d> <dir>"
+      !IF( LEN_TRIM(select_multiple)>0 ) THEN
+      !  READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, treal(1), region_dir
+      !ELSE
+      !  READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, treal(1), region_dir
+      !ENDIF
+      treal(1) = TRIM(substr(3+k))
+      region_dir = TRIM(substr(4+k))
       i=1
       SELECT CASE(region_dir)
       CASE('x','X')
-        i=1
+        CALL BOX2DBLE( H(:,1) , treal(1) , region_1(1) , status )
       CASE('y','Y')
-        i=2
+        CALL BOX2DBLE( H(:,2) , treal(1) , region_1(1) , status )
       CASE('z','Z')
-        i=3
+        CALL BOX2DBLE( H(:,2) , treal(1) , region_1(1) , status )
       CASE DEFAULT
-        !nerr=nerr+1
-        !GOTO 1000
+        !Should be Miller indices
+        CALL MILLER2VEC(H,region_dir,ORIENT,addatom_prop(:),j)
+        IF(j>0) THEN
+          !Other error, unable to convert this string into a proper vector
+          CALL ATOMSK_MSG(817,(/TRIM(region_dir)/),(/0.d0/))
+          GOTO 1000
+        ENDIF
+        !Check that vector is not [000]
+        IF( VECLENGTH(addatom_prop)<1.d-12 ) THEN
+          CALL ATOMSK_MSG(814,(/""/),(/0.d0/))
+          nerr=nerr+1
+          GOTO 1000
+        ENDIF
+        vector(:) = addatom_prop(1)*H(1,:) + addatom_prop(2)*H(2,:) + addatom_prop(2)*H(3,:)
+        CALL BOX2DBLE( vector(:) , treal(1) , region_1(1) , status )
       END SELECT
-      CALL BOX2DBLE( H(:,i) , treal(1) , region_1(1) , status )
       IF(status>0) THEN
         temp = treal(1)
         GOTO 810
       ENDIF
     ELSEIF( region_side=="in" .OR. region_side=="out" ) THEN
+      !"-select <in|out> cell"
+      !"-select <in|out> box <x> <y> <z> <x'> <y'> <z'>"
+      !"-select <in|out> sphere <x> <y> <z> <R>"
+      !"-select <in|out> cylinder <axis> <x1> <x2> <R>"
+      !"-select <in|out> cone <axis> <x> <y> <z> <alpha>"
+      !"-select <in|out> torus <axis> <x> <y> <z> <R> <r>"
       region_dir = ""
       region_1(:) = 0.d0
       region_2(:) = 0.d0
-      IF( LEN_TRIM(select_multiple)>0 ) THEN
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, region_geom
-      ELSE
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, region_geom
-      ENDIF
+      !IF( LEN_TRIM(select_multiple)>0 ) THEN
+      !  READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, region_geom
+      !ELSE
+      !  READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, region_geom
+      !ENDIF
+      region_geom = TRIM(substr(3+k))
       IF(region_geom=='cell') THEN
         !No other parameter
       ELSEIF(region_geom=='box' .OR. region_geom=='block') THEN
-        IF( LEN_TRIM(select_multiple)>0 ) THEN
-          READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp,&
-              & region_side, region_geom, treal(1), treal(2), treal(3), &
-              & treal(4), treal(5), treal(6)
-        ELSE
-          READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
-              & region_side, region_geom, treal(1), treal(2), treal(3), &
-              & treal(4), treal(5), treal(6)
-        ENDIF
+        !IF( LEN_TRIM(select_multiple)>0 ) THEN
+          !READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp,&
+          !    & region_side, region_geom, treal(1), treal(2), treal(3), &
+          !    & treal(4), treal(5), treal(6)
+!         ELSE
+!           READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
+!               & region_side, region_geom, treal(1), treal(2), treal(3), &
+!               & treal(4), treal(5), treal(6)
+!         ENDIF
         !Check if numbers contain a keyword like "BOX" or "INF"
+        IF(SIZE(substr)<9+k) GOTO 800
+        treal(1) = TRIM(substr(4+k))  !xmin
+        treal(2) = TRIM(substr(5+k))  !ymin
+        treal(3) = TRIM(substr(6+k))  !zmin
+        treal(4) = TRIM(substr(7+k))  !xmax
+        treal(5) = TRIM(substr(8+k))  !ymax
+        treal(6) = TRIM(substr(9+k))  !zmax
         DO i=1,3
           CALL BOX2DBLE( H(:,i) , treal(i) , region_1(i) , status )
           IF(status>0) THEN
@@ -1041,13 +1155,18 @@ DO ioptions=1,SIZE(options_array)
           ENDIF
         ENDDO
       ELSEIF(region_geom=='sphere') THEN
-        IF( LEN_TRIM(select_multiple)>0 ) THEN
-          READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, &
-              & region_side, region_geom, treal(1), treal(2), treal(3), treal(4)
-        ELSE
-          READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
-              & region_side, region_geom, treal(1), treal(2), treal(3), treal(4)
-        ENDIF
+!         IF( LEN_TRIM(select_multiple)>0 ) THEN
+!           READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, &
+!               & region_side, region_geom, treal(1), treal(2), treal(3), treal(4)
+!         ELSE
+!           READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
+!               & region_side, region_geom, treal(1), treal(2), treal(3), treal(4)
+!         ENDIF
+        IF(SIZE(substr)<7+k) GOTO 800
+        treal(1) = TRIM(substr(4+k))  !x
+        treal(2) = TRIM(substr(5+k))  !y
+        treal(3) = TRIM(substr(6+k))  !z
+        READ(substr(7+k),*,END=800,ERR=800) region_2(1)  !radius (in angströms)
         !Check if numbers contain a keyword like "BOX" or "INF"
         DO i=1,3
           CALL BOX2DBLE( H(:,i) , treal(i) , region_1(i) , status )
@@ -1056,18 +1175,19 @@ DO ioptions=1,SIZE(options_array)
             GOTO 810
           ENDIF
         ENDDO
-        !Radius of sphere must be in Angstroms
-        READ(treal(4),*,END=800,ERR=800) region_2(1)
-        region_2(2) = 0.d0
-        region_2(3) = 0.d0
       ELSEIF(region_geom=='cylinder') THEN
-        IF( LEN_TRIM(select_multiple)>0 ) THEN
-          READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, &
-              & region_side, region_geom, region_dir, treal(1), treal(2), treal(4)
-        ELSE
-          READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
-              & region_side, region_geom, region_dir, treal(1), treal(2), treal(4)
-        ENDIF
+!         IF( LEN_TRIM(select_multiple)>0 ) THEN
+!           READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, &
+!               & region_side, region_geom, region_dir, treal(1), treal(2), treal(4)
+!         ELSE
+!           READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
+!               & region_side, region_geom, region_dir, treal(1), treal(2), treal(4)
+!         ENDIF
+        IF(SIZE(substr)<7+k) GOTO 800
+        region_dir = TRIM(substr(4+k)) !axis
+        treal(1) = TRIM(substr(5+k))   !x
+        treal(2) = TRIM(substr(6+k))   !y
+        READ(substr(7+k),*,END=800,ERR=800) region_2(1)  !radius (in angströms)
         !Check if numbers contain a keyword like "BOX" or "INF"
         SELECT CASE(region_dir)
         CASE('x','X')
@@ -1107,19 +1227,21 @@ DO ioptions=1,SIZE(options_array)
           nerr=nerr+1
           GOTO 1000
         END SELECT
-        !Radius of cylinder must be in Angstroms
-        READ(treal(4),*,END=800,ERR=800) region_2(1)
-        region_1(3) = 0.d0
-        region_2(2) = 0.d0
-        region_2(3) = 0.d0
       ELSEIF(region_geom=='cone') THEN
-        IF( LEN_TRIM(select_multiple)>0 ) THEN
-          READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, &
-              & region_geom, region_dir, treal(1), treal(2), treal(3), region_2(1)
-        ELSE
-          READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, &
-              & region_geom, region_dir, treal(1), treal(2), treal(3), region_2(1)
-        ENDIF
+!         IF( LEN_TRIM(select_multiple)>0 ) THEN
+!           READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, &
+!               & region_geom, region_dir, treal(1), treal(2), treal(3), region_2(1)
+!         ELSE
+!           READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, &
+!               & region_geom, region_dir, treal(1), treal(2), treal(3), region_2(1)
+!         ENDIF
+        IF(SIZE(substr)<8+k) GOTO 800
+        region_dir = TRIM(substr(4+k)) !axis
+        treal(1) = TRIM(substr(5+k))   !x
+        treal(2) = TRIM(substr(6+k))   !y
+        treal(3) = TRIM(substr(7+k))   !z
+        treal(4) = TRIM(substr(8+k))   !z
+        READ(substr(8+k),*,END=800,ERR=800) region_2(1)  !angle alpha
         !Check if numbers contain a keyword like "BOX" or "INF"
         DO i=1,3
           CALL BOX2DBLE( H(:,i) , treal(i) , region_1(i) , status )
@@ -1129,13 +1251,20 @@ DO ioptions=1,SIZE(options_array)
           ENDIF
         ENDDO
       ELSEIF(region_geom=='torus' .OR. region_geom=='pyramid') THEN
-        IF( LEN_TRIM(select_multiple)>0 ) THEN
-          READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, &
-              & region_geom, region_dir, treal(1), treal(2), treal(3), region_2(1), region_2(2)
-        ELSE
-          READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, &
-              & region_geom, region_dir, treal(1), treal(2), treal(3), region_2(1), region_2(2)
-        ENDIF
+!         IF( LEN_TRIM(select_multiple)>0 ) THEN
+!           READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, &
+!               & region_geom, region_dir, treal(1), treal(2), treal(3), region_2(1), region_2(2)
+!         ELSE
+!           READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, &
+!               & region_geom, region_dir, treal(1), treal(2), treal(3), region_2(1), region_2(2)
+!         ENDIF
+        IF(SIZE(substr)<9+k) GOTO 800
+        region_dir = TRIM(substr(4+k)) !axis
+        treal(1) = TRIM(substr(5+k))   !x
+        treal(2) = TRIM(substr(6+k))   !y
+        treal(3) = TRIM(substr(7+k))   !z
+        READ(substr(8+k),*,END=800,ERR=800) region_2(1)  !primary radius (in angströms)
+        READ(substr(9+k),*,END=800,ERR=800) region_2(2)  !secondary radius (in angströms)
         !Check if numbers contain a keyword like "BOX" or "INF"
         DO i=1,3
           CALL BOX2DBLE( H(:,i) , treal(i) , region_1(i) , status )
@@ -1146,14 +1275,17 @@ DO ioptions=1,SIZE(options_array)
         ENDDO
       ENDIF
     ELSEIF( region_side=="prop" .OR. region_side=="property" ) THEN
+      !"-select prop <property> <value1[:value2]>"
       !store property name in "region_geom"
-      IF( LEN_TRIM(select_multiple)>0 ) THEN
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, region_geom, temp
-      ELSE
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, region_geom, temp
-      ENDIF
+!       IF( LEN_TRIM(select_multiple)>0 ) THEN
+!         READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, region_geom, temp
+!       ELSE
+!         READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, region_geom, temp
+!       ENDIF
       !store value(s) of the property into
-      temp = ADJUSTL(temp)
+      IF(SIZE(substr)<4+k) GOTO 800
+      region_geom = TRIM(substr(3+k))
+      temp = TRIM(substr(4+k))
       IF( temp(1:3)=="min" .OR. temp(1:3)=="max" ) THEN
         region_dir = TRIM(ADJUSTL(temp(1:3)))
       ELSE
@@ -1178,14 +1310,18 @@ DO ioptions=1,SIZE(options_array)
         ENDIF
       ENDIF
     ELSEIF( region_side=="random" ) THEN
+      !"-select random <N> <species>"
       !store number of atoms N to region_1(1) and species to region_geom
-      IF( LEN_TRIM(select_multiple)>0 ) THEN
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, &
-            & region_side, treal(1), region_geom
-      ELSE
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
-            & region_side, treal(1), region_geom
-      ENDIF
+!       IF( LEN_TRIM(select_multiple)>0 ) THEN
+!         READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, &
+!             & region_side, treal(1), region_geom
+!       ELSE
+!         READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
+!             & region_side, treal(1), region_geom
+!       ENDIF
+      IF(SIZE(substr)<4+k) GOTO 800
+      treal(1) = TRIM(substr(3+k))
+      region_geom = TRIM(substr(4+k))
       j = INDEX(treal(1),"%")
       IF( j>0 ) THEN
         !treal(1) contains a percentage
@@ -1205,12 +1341,13 @@ DO ioptions=1,SIZE(options_array)
       !  GOTO 810
       !ENDIF
     ELSEIF( region_side=="stl" ) THEN
-      IF( LEN_TRIM(select_multiple)>0 ) THEN
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, region_geom
-      ELSE
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, region_geom
-      ENDIF
-      region_geom = TRIM(ADJUSTL(region_geom))
+      !"-select stl [center] [rescale|fill] <file>"
+!       IF( LEN_TRIM(select_multiple)>0 ) THEN
+!         READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, region_geom
+!       ELSE
+!         READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, region_geom
+!       ENDIF
+      region_geom = TRIM(substr(3+k))
       IF( INDEX(region_geom,"center")>0 .OR. INDEX(region_geom,"scale")>0  &
         & .OR. INDEX(region_geom,"fill")>0  ) THEN
         IF( LEN_TRIM(select_multiple)>0 ) THEN
@@ -1218,34 +1355,47 @@ DO ioptions=1,SIZE(options_array)
         ELSE
           READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, region_dir, region_geom
         ENDIF
+        region_dir = TRIM(substr(3+k))
+        region_geom = TRIM(substr(4+k))
       ENDIF
     ELSEIF( region_side=="neigh" ) THEN
+      !"-select <NNN> <species> neighbors <index>"
       !Store number of neighbors, or cutoff radius for neighbor search, into region_1(1)
       !Store species of neighbors (can be "all" or "any") in region_geom
       !Store index of atoms whose neighbors must be searched in region_1(2)
-      IF( LEN_TRIM(select_multiple)>0 ) THEN
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, &
-            & region_side, region_1(1), region_geom, region_1(2)
-      ELSE
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
-            & region_side, region_1(1), region_geom, region_1(2)
-      ENDIF
+!       IF( LEN_TRIM(select_multiple)>0 ) THEN
+!         READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, &
+!             & region_side, region_1(1), region_geom, region_1(2)
+!       ELSE
+!         READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
+!             & region_side, region_1(1), region_geom, region_1(2)
+!       ENDIF
+      IF(SIZE(substr)<5+k) GOTO 800
+      READ(substr(3+k),*,END=800,ERR=800) region_1(1)
+      region_geom = TRIM(substr(4+k))
+      READ(substr(5+k),*,END=800,ERR=800) region_1(2)
     ELSEIF( region_side=="modulo" .OR. region_side=="mod" ) THEN
+      !"-select <i> modulo <j>"
       !Store index into region_1(1) and modulo into region_1(2)
-      IF( LEN_TRIM(select_multiple)>0 ) THEN
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, &
-            & region_side, region_1(1), region_1(2)
-      ELSE
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
-            & region_side, region_1(1), region_1(2)
-      ENDIF
+!       IF( LEN_TRIM(select_multiple)>0 ) THEN
+!         READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, &
+!             & region_side, region_1(1), region_1(2)
+!       ELSE
+!         READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
+!             & region_side, region_1(1), region_1(2)
+!       ENDIF
+      IF(SIZE(substr)<4+k) GOTO 800
+      READ(substr(3+k),*,END=800,ERR=800) region_1(1)
+      READ(substr(4+k),*,END=800,ERR=800) region_1(2)
     ELSEIF( region_side=="list" .OR. region_side=="grid" ) THEN
       !store the name of file containing list of atoms in "region_geom"
-      IF( LEN_TRIM(select_multiple)>0 ) THEN
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, region_geom
-      ELSE
-        READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, region_geom
-      ENDIF
+!       IF( LEN_TRIM(select_multiple)>0 ) THEN
+!         READ(options_array(ioptions),*,END=800,ERR=800) optionname, temp, region_side, region_geom
+!       ELSE
+!         READ(options_array(ioptions),*,END=800,ERR=800) optionname, region_side, region_geom
+!       ENDIF
+      IF(SIZE(substr)<3+k) GOTO 800
+      READ(substr(3+k),*,END=800,ERR=800) region_geom
     ENDIF
     IF(nerr.NE.0) GOTO 1000
     CALL SELECT_XYZ(H,P,AUXNAMES,AUX,select_multiple,region_side,region_geom,region_dir,region_1,region_2,ORIENT,SELECT)
@@ -1255,21 +1405,44 @@ DO ioptions=1,SIZE(options_array)
     CALL SEPARATE_XYZ(H,P,S,sep_radius,sep_dist,SELECT)
   !
   CASE('-shift')
-    shift_dir = TRIM(ADJUSTL(options_array(ioptions)(7:)))
-    IF( shift_dir(1:5)=='above' .OR. shift_dir(1:5)=='below' ) THEN
-      READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
-          & shift_dir, treal(4), shift_axis, treal(1), treal(2), treal(3)
+    !"-shift [above d <normal>] dx dy dz"
+    !shift_dir = TRIM(ADJUSTL(options_array(ioptions)(7:)))
+    !j = SCAN(shift_dir," ")
+    CALL STRCUT(options_array(ioptions),' ',substr)
+    shift_dir = TRIM(substr(2))
+    IF( shift_dir=='above' .OR. shift_dir=='below' ) THEN
+      IF( SIZE(substr)<7 ) GOTO 800
+      treal(4) = TRIM(substr(3))
+      shift_axis = TRIM(substr(4))
+      treal(1) = TRIM(substr(5))
+      treal(2) = TRIM(substr(6))
+      treal(3) = TRIM(substr(7))
       !Check if numbers contain a keyword like "BOX" or "INF"
       i=1
       SELECT CASE(shift_axis)
       CASE('x','X')
-        i=1
+        CALL BOX2DBLE( H(:,1) , treal(4) , shift_dist , status )
       CASE('y','Y')
-        i=2
+        CALL BOX2DBLE( H(:,2) , treal(4) , shift_dist , status )
       CASE('z','Z')
-        i=3
+        CALL BOX2DBLE( H(:,3) , treal(4) , shift_dist , status )
+      CASE DEFAULT
+        !Should be Miller indices
+        CALL MILLER2VEC(H,shift_axis,ORIENT,addatom_prop(:),j)
+        IF(j>0) THEN
+          !Other error, unable to convert this string into a proper vector
+          CALL ATOMSK_MSG(817,(/TRIM(shift_axis)/),(/0.d0/))
+          GOTO 1000
+        ENDIF
+        !Check that vector is not [000]
+        IF( VECLENGTH(addatom_prop)<1.d-12 ) THEN
+          CALL ATOMSK_MSG(814,(/""/),(/0.d0/))
+          nerr=nerr+1
+          GOTO 1000
+        ENDIF
+        vector(:) = addatom_prop(1)*H(1,:) + addatom_prop(2)*H(2,:) + addatom_prop(2)*H(3,:)
+        CALL BOX2DBLE( vector(:) , treal(4) , shift_dist , status )
       END SELECT
-      CALL BOX2DBLE( H(:,i) , treal(4) , shift_dist , status )
       IF(status>0) THEN
         temp = treal(4)
         GOTO 810
@@ -1277,8 +1450,10 @@ DO ioptions=1,SIZE(options_array)
     ELSE
       shift_dir = ''
       shift_axis = ''
-      READ(options_array(ioptions),*,END=800,ERR=800) optionname, &
-          & treal(1), treal(2), treal(3)
+      IF( SIZE(substr)<4 ) GOTO 800
+      treal(1) = TRIM(substr(2))
+      treal(2) = TRIM(substr(3))
+      treal(3) = TRIM(substr(4))
     ENDIF
     CALL BOX2DBLE( H(:,1) , treal(1) , shift_tau1 , status )
     IF(status>0) THEN
@@ -1522,11 +1697,13 @@ DO ioptions=1,SIZE(options_array)
   ENDIF
   !
   !
+  IF(ALLOCATED(substr)) DEALLOCATE(substr)
 !
 ENDDO  !End Loop on all Options
 !
 !
 !End of options => check sizes of the arrays
+IF(ALLOCATED(substr)) DEALLOCATE(substr)
 IF( .NOT.ALLOCATED(P) .OR. SIZE(P,1)==0 ) THEN
   
   nerr = nerr+1

@@ -10,7 +10,7 @@ MODULE messages_EN
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 24 June 2026                                     *
+!* Last modification: P. Hirel - 10 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -2056,26 +2056,27 @@ CASE(2117)
   !reals(2) = number of atoms in the system
   !reals(3) = number of atoms in tetrahedral sites
   !reals(4) = number of atoms in octahedral sites
+  temp = ""
   IF( NINT(reals(3))>0 .OR. NINT(reals(4))>0 ) THEN
     IF( NINT(reals(3))<=0 ) THEN
-      temp = "in octahedral sites"
+      temp = " in octahedral sites"
     ELSEIF( NINT(reals(4))<=0 ) THEN
-      temp = "in tetrahedral sites"
+      temp = " in tetrahedral sites"
     ELSE
-      temp = '('
+      temp = ' ('
       WRITE(temp3,*) NINT(reals(3))
       WRITE(temp4,*) NINT(reals(4))
-      temp = '('//TRIM(ADJUSTL(temp3))//" in tetrahedral + "//TRIM(ADJUSTL(temp4))// &
+      temp = ' ('//TRIM(ADJUSTL(temp3))//" in tetrahedral + "//TRIM(ADJUSTL(temp4))// &
            & " in octahedral sites)"
     ENDIF
   ENDIF
   IF(NINT(reals(1))==0) THEN
     msg = "..> No atom was added"
   ELSEIF(NINT(reals(1))==1) THEN
-    msg = "..> 1 atom was added "//TRIM(ADJUSTL(temp))
+    msg = "..> 1 atom was added"//TRIM(temp)
   ELSE
     WRITE(msg,*) NINT(reals(1))
-    msg = "..> "//TRIM(ADJUSTL(msg))//" atoms were added "//TRIM(ADJUSTL(temp))
+    msg = "..> "//TRIM(ADJUSTL(msg))//" atoms were added"//TRIM(temp)
   ENDIF
   WRITE(temp,*) NINT(reals(2))
   msg = TRIM(ADJUSTL(msg))//", "//TRIM(ADJUSTL(temp))//" atoms in the system."
@@ -2979,6 +2980,8 @@ CASE(4022)
   CALL DISPLAY_MSG(verbosity,msg,logfile)
 CASE(4023)
   IF( strings(1)=="crys" .OR. strings(1)=="elast" ) THEN
+    msg = "element <XX|Z>             Display information about element XX or atomic number Z"
+    CALL DISPLAY_MSG(verbosity,msg,logfile)
     msg = "a0 <value>                 Define lattice constants a0 (angströms) (also b0, c0)"
     CALL DISPLAY_MSG(verbosity,msg,logfile)
     msg = "alpha <angle°>             Define cell angle alpha (°) (also beta, gamma)"
@@ -3075,7 +3078,9 @@ CASE(4028)
   msg = "..> "//TRIM(ADJUSTL(strings(1)))
   CALL DISPLAY_MSG(verbosity,msg,logfile)
 CASE(4029)
-  msg = "..> System was successfully created."
+  !reals(1) = number of atoms in the system
+  WRITE(temp,*) NINT(reals(1))
+  msg = "..> System was successfully created ("//TRIM(ADJUSTL(temp))//" atoms)."
   CALL DISPLAY_MSG(verbosity,msg,logfile)
 CASE(4030)
   !strings(1) = merge direction
@@ -3812,7 +3817,7 @@ CASE(4823)
   CALL DISPLAY_MSG(1,msg,logfile)
 CASE(4824)
   !strings(1) = name of unknown command
-  msg = TRIM(ADJUSTL(errmsg))//" unknown command: "//TRIM(ADJUSTL(strings(1)))
+  msg = "    "//TRIM(ADJUSTL(errmsg))//" unknown command: "//TRIM(ADJUSTL(strings(1)))
   CALL DISPLAY_MSG(1,msg,logfile)
   msg = "    Type 'help' for a list of available commands."
   CALL DISPLAY_MSG(1,msg,logfile)

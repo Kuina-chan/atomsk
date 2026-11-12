@@ -21,7 +21,7 @@ MODULE mode_nye
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 28 Feb. 2025                                     *
+!* Last modification: P. Hirel - 05 Nov. 2026                                     *
 !**********************************************************************************
 !* OUTLINE:                                                                       *
 !* 100        Read atom positions systems 1 and 2, construct neighbor lists       *
@@ -386,7 +386,7 @@ DO iat=1,SIZE(P2,1)
   IF( firstref ) THEN
     !The system in "filefirst" is used as reference
     !Search neighbors of atom #iat in first system
-    CALL NEIGHBOR_POS(H1,P1,P1(iat,1:3),NeighList1(iat,:),ALLOCATED(NeighList1),radius,PosList1)
+    CALL NEIGHBOR_POS(H1,P1,iat,P1(iat,1:3),NeighList1(iat,:),ALLOCATED(NeighList1),radius,PosList1)
     !
     IF( SIZE(PosList1,1)>=3 ) THEN
       !Now PosList1(:,:) contains the cartesian positions of all neighbors of atom #iat,
@@ -462,7 +462,7 @@ DO iat=1,SIZE(P2,1)
     IF(ALLOCATED(V_NN)) DEALLOCATE(V_NN)
     !
     !Search neighbors of atom #iat in second system
-    CALL NEIGHBOR_POS(H2,P2,P2(iat,1:3),NeighList2(iat,:),ALLOCATED(NeighList2),radius,PosList2)
+    CALL NEIGHBOR_POS(H2,P2,iat,P2(iat,1:3),NeighList2(iat,:),ALLOCATED(NeighList2),radius,PosList2)
     !
     IF( SIZE(PosList2,1)>=3 ) THEN
       !Now PosList2(:,:) contains the cartesian positions of all neighbors in the cutoff,
@@ -511,7 +511,7 @@ DO iat=1,SIZE(P2,1)
       ENDDO
       !
       !Search neighbors of atom #iat in second system
-      CALL NEIGHBOR_POS(H2,P2,P2(iat,1:3),NeighList2(iat,:),ALLOCATED(NeighList2),radius,PosList2)
+      CALL NEIGHBOR_POS(H2,P2,iat,P2(iat,1:3),NeighList2(iat,:),ALLOCATED(NeighList2),radius,PosList2)
       !
       IF( SIZE(PosList2,1)>=NNmin ) THEN
         !Now PosList2(:,:) contains the cartesian positions of all neighbors of atom #iat,

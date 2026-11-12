@@ -10,7 +10,7 @@ MODULE addatom
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 05 March 2026                                    *
+!* Last modification: P. Hirel - 12 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -192,7 +192,7 @@ CASE("relative","rel")
   !
   !
 CASE("near","NEAR")
-  WRITE(msg,'(a3,i9)') 'NEAR ', NINT(addatom_prop(1))
+  WRITE(msg,'(a5,i9)') 'NEAR ', NINT(addatom_prop(1))
   CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
   !A new atom must be added near atom with the index addatom_prop(1)
   !Get index of atom
@@ -211,7 +211,7 @@ CASE("near","NEAR")
       dmax = 6.d0
       DO i=1,SIZE(V_NN,1)
         distance = VECLENGTH( P(atomindex,1:3) - V_NN(i,1:3) )
-        IF( distance<dmax .AND. distance >1.d-12 ) THEN
+        IF( distance<dmax .AND. distance >1.d-3 ) THEN
           dmax = VECLENGTH( P(atomindex,1:3) - V_NN(i,1:3) )
         ENDIF
       ENDDO
@@ -252,10 +252,9 @@ CASE("near","NEAR")
     IF(ALLOCATED(V_NN)) DEALLOCATE(V_NN)
     !
   ELSE
-    !Error: atom index out of bounds
-    x = 0.d0
-    y = 0.d0
-    z = 0.d0
+    nwarn=nwarn+1
+    CALL ATOMSK_MSG(2742,(/""/),(/DBLE(atomindex)/))
+    GOTO 300
   ENDIF
   !
   !Save position of new atom in newP

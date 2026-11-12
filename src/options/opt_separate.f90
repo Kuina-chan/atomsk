@@ -9,7 +9,7 @@ MODULE separate
 !*     Unité Matériaux Et Transformations (UMET),                                 *
 !*     Université de Lille 1, Bâtiment C6, F-59655 Villeneuve D'Ascq (FRANCE)     *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 26 Feb. 2025                                     *
+!* Last modification: P. Hirel - 05 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -79,7 +79,7 @@ CALL NEIGHBOR_LIST(H,P,sep_radius,NeighList)
 DO i=1,SIZE(P,1)-1  !Loop on all atoms
   !
   !Find positions of neighbours of P(i,:) that are closer than rmd_radius
-  CALL NEIGHBOR_POS(H,P(:,:),P(i,1:3),NeighList(i,:),ALLOCATED(NeighList),sep_radius,PosList)
+  CALL NEIGHBOR_POS(H,P(:,:),i,P(i,1:3),NeighList(i,:),ALLOCATED(NeighList),sep_radius,PosList)
   !Now PosList(:,:) contains the cartesian positions of all neighbors in the rmd_radius,
   !their distance to the atom #i, and their indices.
   !

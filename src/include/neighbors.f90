@@ -762,11 +762,12 @@ END SUBROUTINE CELL_LIST
 ! NOTE: as for the subroutine NEIGHBOR_LIST, atom
 !      coordinates are assumed to be wrapped.
 !********************************************************
-SUBROUTINE NEIGHBOR_POS(H,A,V,NeighList,Use_NeighList,radius,PosList)
+SUBROUTINE NEIGHBOR_POS(H,A,id,V,NeighList,Use_NeighList,radius,PosList)
 !
 IMPLICIT NONE
 LOGICAL:: selfneighbor  !is central atom a neighbor of itself? (because of PBC)
 LOGICAL,INTENT(IN):: Use_NeighList !use provided neighbor list?
+INTEGER,INTENT(IN):: id !index of central atom
 INTEGER:: i, m, n, o
 INTEGER:: Nm, Nn, No !number of replicas to search along X, Y, Z
 INTEGER:: Nneighbors
@@ -878,7 +879,7 @@ IF( Nneighbors>0 ) THEN
             Nneighbors = Nneighbors+1
             PosList(Nneighbors,1:3) = vector(:)
             PosList(Nneighbors,4) = distance
-            PosList(Nneighbors,5) = 0.d0
+            PosList(Nneighbors,5) = DBLE(id)
           ENDIF
         ENDDO
       ENDDO

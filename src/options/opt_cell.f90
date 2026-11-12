@@ -13,7 +13,7 @@ MODULE cell
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 14 Sept. 2026                                    *
+!* Last modification: P. Hirel - 12 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -76,8 +76,14 @@ rotmat(:,:) = Id_Matrix(:,:)
 !
 !
 100 CONTINUE
-msg = 'Entering CELL_XYZ...'
-CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
+IF( verbosity>=4 ) THEN
+  WRITE(msg,*) "Entering CELL_XYZ: ", celldir, cellop, celllength
+  CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
+  DO a1=1,3
+    WRITE(msg,*) "Cell before: ", (H(a1,i), i=1,3)
+    CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
+  ENDDO
+ENDIF
 !
 CALL ATOMSK_MSG(2151,(/cellop,celldir/),(/celllength/))
 !
@@ -239,7 +245,8 @@ IF( cellop=="add" .OR. cellop=="rm" .OR. cellop=="set" ) THEN
           H(a1,:) = celllength*H(a1,:) / (vl*DSIN(alpha))
         ELSE
           !Add or remove given length to cell vector
-          H(a1,:) = ( vl + (dH/DCOS(alpha)) ) * H(a1,:) / vl
+          !H(a1,:) = ( vl + (dH/DCOS(alpha)) ) * H(a1,:) / vl
+          H(a1,:) = H(a1,:) * (vl+dH)/vl
         ENDIF
         Nmodified = Nmodified+1
       ENDIF
@@ -279,6 +286,14 @@ nerr = nerr+1
 IF( VOLUME_PARA(H)<=1.d-6 ) THEN
   nwarn = nwarn+1
   CALL ATOMSK_MSG(2769,(/''/),(/0.d0/))
+ENDIF
+IF( verbosity>=4 ) THEN
+  DO a1=1,3
+    WRITE(msg,*) "Cell after: ", (H(a1,i), i=1,3)
+    CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
+  ENDDO
+  WRITE(msg,*) "Exiting CELL_XYZ"
+  CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
 ENDIF
 !
 !

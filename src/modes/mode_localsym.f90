@@ -28,7 +28,7 @@ MODULE mode_localsym
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 16 Jan. 2023                                     *
+!* Last modification: P. Hirel - 05 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -216,7 +216,7 @@ DO i=1,SIZE(P,1)
   IF(ALLOCATED(three_angles)) DEALLOCATE(three_angles)
   !
   !Get the positions of neighbors of atom #i
-  CALL NEIGHBOR_POS(H,P,P(i,1:3),NeighList(i,:),ALLOCATED(NeighList),6.d0,PosList)
+  CALL NEIGHBOR_POS(H,P,i,P(i,1:3),NeighList(i,:),ALLOCATED(NeighList),6.d0,PosList)
   !
   IF( ALLOCATED(PosList) .AND. SIZE(PosList,1)>0 ) THEN
     !
