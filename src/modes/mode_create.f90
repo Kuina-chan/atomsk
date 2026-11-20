@@ -11,7 +11,7 @@ MODULE mode_create
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 12 Nov. 2026                                     *
+!* Last modification: P. Hirel - 19 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -525,10 +525,10 @@ CASE("per","perovskite")
   ALLOCATE(P(5,4))
   !Set up atom positions (reduced coordinates)
   P(:,:) = 0.d0
-  P(1,1:3) = (/ 0.5d0 , 0.5d0 , 0.5d0 /)
-  P(3,1:3) = (/ 0.5d0 , 0.0d0 , 0.0d0 /)
-  P(4,1:3) = (/ 0.0d0 , 0.5d0 , 0.0d0 /)
-  P(5,1:3) = (/ 0.0d0 , 0.0d0 , 0.5d0 /)
+  P(2,1:3) = (/ 0.5d0 , 0.5d0 , 0.5d0 /)
+  P(3,1:3) = (/ 0.5d0 , 0.5d0 , 0.0d0 /)
+  P(4,1:3) = (/ 0.5d0 , 0.0d0 , 0.5d0 /)
+  P(5,1:3) = (/ 0.0d0 , 0.5d0 , 0.5d0 /)
   !Convert to Cartesian coordinates
   P(:,1) = create_a0(1)*P(:,1)
   P(:,2) = create_a0(2)*P(:,2)
@@ -553,7 +553,99 @@ CASE("per","perovskite")
   ENDIF
 !
 !
+CASE("spinel")
+  lattype = "cubic"
+  IF(nspecies.NE.3) THEN
+    CALL ATOMSK_MSG(4804,(/create_struc/),(/ 3.d0 /))
+    GOTO 810
+  ENDIF
+  ALLOCATE(P(56,4))
+  !Set up atom positions (reduced coordinates), e.g. Al2MgO4
+  P(:,:) = 0.d0
+  P(2,1:3)  = (/ 0.0000 , 0.2500 , 0.2500 /)   !Al sites
+  P(3,1:3)  = (/ 0.7500 , 0.2500 , 0.5000 /)
+  P(4,1:3)  = (/ 0.7500 , 0.0000 , 0.7500 /)
+  P(5,1:3)  = (/ 0.2500 , 0.0000 , 0.2500 /)
+  P(6,1:3)  = (/ 0.5000 , 0.7500 , 0.2500 /)
+  P(7,1:3)  = (/ 0.7500 , 0.7500 , 0.0000 /)
+  P(8,1:3)  = (/ 0.0000 , 0.5000 , 0.5000 /)
+  P(9,1:3)  = (/ 0.2500 , 0.7500 , 0.5000 /)
+  P(10,1:3) = (/ 0.7500 , 0.5000 , 0.2500 /)
+  P(11,1:3) = (/ 0.5000 , 0.5000 , 0.0000 /)
+  P(12,1:3) = (/ 0.2500 , 0.2500 , 0.0000 /)
+  P(13,1:3) = (/ 0.5000 , 0.2500 , 0.7500 /)
+  P(14,1:3) = (/ 0.2500 , 0.5000 , 0.7500 /)
+  P(15,1:3) = (/ 0.5000 , 0.0000 , 0.5000 /)
+  P(16,1:3) = (/ 0.0000 , 0.7500 , 0.7500 /)
+  !
+  P(17,1:3) = (/ 0.3750 , 0.37500 , 0.3750 /)   !Mg sites
+  P(18,1:3) = (/ 0.6250 , 0.62500 , 0.6250 /)
+  P(19,1:3) = (/ 0.3750 , 0.87500 , 0.8750 /)
+  P(20,1:3) = (/ 0.1250 , 0.62500 , 0.1250 /)
+  P(21,1:3) = (/ 0.8750 , 0.37500 , 0.8750 /)
+  P(22,1:3) = (/ 0.1250 , 0.12500 , 0.6250 /)
+  P(23,1:3) = (/ 0.6250 , 0.12500 , 0.1250 /)
+  P(24,1:3) = (/ 0.8750 , 0.87500 , 0.3750 /)
+  !
+  P(25,1:3) = (/ 0.2500 , 0.25000 , 0.2500 /)   !O sites
+  P(26,1:3) = (/ 0.7500 , 0.50000 , 0.5000 /)
+  P(27,1:3) = (/ 0.5000 , 0.00000 , 0.7500 /)
+  P(28,1:3) = (/ 0.0000 , 0.75000 , 0.0000 /)
+  P(29,1:3) = (/ 0.2500 , 0.00000 , 0.0000 /)
+  P(30,1:3) = (/ 0.7500 , 0.75000 , 0.7500 /)
+  P(31,1:3) = (/ 0.5000 , 0.25000 , 0.5000 /)
+  P(32,1:3) = (/ 0.0000 , 0.50000 , 0.2500 /)
+  P(33,1:3) = (/ 0.5000 , 0.75000 , 0.5000 /)
+  P(34,1:3) = (/ 0.7500 , 0.50000 , 0.0000 /)
+  P(35,1:3) = (/ 0.0000 , 0.00000 , 0.7500 /)
+  P(36,1:3) = (/ 0.0000 , 0.25000 , 0.0000 /)
+  P(37,1:3) = (/ 0.5000 , 0.50000 , 0.2500 /)
+  P(38,1:3) = (/ 0.2500 , 0.00000 , 0.5000 /)
+  P(39,1:3) = (/ 0.2500 , 0.75000 , 0.7500 /)
+  P(40,1:3) = (/ 0.5000 , 0.00000 , 0.2500 /)
+  P(41,1:3) = (/ 0.7500 , 0.25000 , 0.2500 /)
+  P(42,1:3) = (/ 0.0000 , 0.50000 , 0.7500 /)
+  P(43,1:3) = (/ 0.5000 , 0.75000 , 0.0000 /)
+  P(44,1:3) = (/ 0.2500 , 0.25000 , 0.7500 /)
+  P(45,1:3) = (/ 0.0000 , 0.00000 , 0.2500 /)
+  P(46,1:3) = (/ 0.0000 , 0.25000 , 0.5000 /)
+  P(47,1:3) = (/ 0.5000 , 0.50000 , 0.7500 /)
+  P(48,1:3) = (/ 0.7500 , 0.75000 , 0.2500 /)
+  P(49,1:3) = (/ 0.2500 , 0.50000 , 0.0000 /)
+  P(50,1:3) = (/ 0.0000 , 0.75000 , 0.5000 /)
+  P(51,1:3) = (/ 0.7500 , 0.00000 , 0.5000 /)
+  P(52,1:3) = (/ 0.5000 , 0.25000 , 0.0000 /)
+  P(53,1:3) = (/ 0.2500 , 0.75000 , 0.2500 /)
+  P(54,1:3) = (/ 0.7500 , 0.25000 , 0.7500 /)
+  P(55,1:3) = (/ 0.2500 , 0.50000 , 0.5000 /)
+  P(56,1:3) = (/ 0.7500 , 0.00000 , 0.0000 /)
+  !Convert to Cartesian coordinates
+  P(:,1) = create_a0(1)*P(:,1)
+  P(:,2) = create_a0(2)*P(:,2)
+  P(:,3) = create_a0(3)*P(:,3)
+  !Set up atom species
+  CALL ATOMNUMBER(create_species(1),P(1,4))
+  P(2:16,4) = P(1,4)
+  CALL ATOMNUMBER(create_species(2),P(17,4))
+  P(18:24,4) = P(17,4)
+  CALL ATOMNUMBER(create_species(3),P(25,4))
+  P(26:56,4) = P(25,4)
+  !Set up the unit cell
+  H(1,1) = create_a0(1)
+  H(2,2) = create_a0(2)
+  H(3,3) = create_a0(3)
+  Huc(:,:) = H(:,:)
+  !Set up the messages
+  temp = TRIM(create_species(1))//'2'//TRIM(create_species(2))//TRIM(create_species(3))//'3'
+  WRITE(comment(1),*) 'Cubic spinel '//TRIM(temp)
+  !If necessary, set up the name of the output file
+  IF( renameof ) THEN
+    outputfile = TRIM(temp)
+  ENDIF
+!
+!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  TETRAGONAL LATTICES  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!NOTE: tetragonal axis is along Z
 CASE("st")
   lattype = "tetragonal"
   IF(nspecies.NE.1) THEN
@@ -645,6 +737,43 @@ CASE("fct","l10","l1_0")
     comment(1) = 'Tetragonal face-centered '//TRIM(ADJUSTL(comment(1)))
   ELSE
     comment(1) = 'Tetragonal face-centered'//TRIM(ADJUSTL(comment(1)))//TRIM(ADJUSTL(create_species(2)))//' alloy'
+  ENDIF
+!
+!
+CASE("tper","tetragonal-perovskite")
+  lattype = "tetragonal"
+  IF(nspecies.NE.3) THEN
+    CALL ATOMSK_MSG(4804,(/create_struc/),(/ 3.d0 /))
+    GOTO 810
+  ENDIF
+  ALLOCATE(P(5,4))
+  !Set up atom positions (reduced coordinates)
+  P(:,:) = 0.d0
+  P(2,1:3) = (/ 0.5d0 , 0.5d0 , 0.51d0 /)
+  P(3,1:3) = (/ 0.5d0 , 0.5d0 ,-0.05d0 /)
+  P(4,1:3) = (/ 0.5d0 , 0.0d0 , 0.45d0 /)
+  P(5,1:3) = (/ 0.0d0 , 0.5d0 , 0.45d0 /)
+  !Convert to Cartesian coordinates
+  P(:,1) = create_a0(1)*P(:,1)
+  P(:,2) = create_a0(2)*P(:,2)
+  P(:,3) = create_a0(3)*P(:,3)
+  !Set up atom species
+  CALL ATOMNUMBER(create_species(1),P(1,4))
+  CALL ATOMNUMBER(create_species(2),P(2,4))
+  CALL ATOMNUMBER(create_species(3),P(3,4))
+  P(4,4) = P(3,4)
+  P(5,4) = P(3,4)
+  !Set up the unit cell
+  H(1,1) = create_a0(1)
+  H(2,2) = create_a0(2)
+  H(3,3) = create_a0(3)
+  Huc(:,:) = H(:,:)
+  !Set up the messages
+  temp = TRIM(create_species(1))//TRIM(create_species(2))//TRIM(create_species(3))//'3'
+  WRITE(comment(1),*) 'Tetragonal perovskite '//TRIM(temp)
+  !If necessary, set up the name of the output file
+  IF( renameof ) THEN
+    outputfile = TRIM(temp)
   ENDIF
 !
 !

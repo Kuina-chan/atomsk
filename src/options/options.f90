@@ -35,7 +35,7 @@ MODULE options
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 12 Nov. 2026                                     *
+!* Last modification: P. Hirel - 16 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -129,7 +129,7 @@ INTEGER:: status
 INTEGER:: strlength
 REAL(dp):: tempreal !temporary real number
 REAL(dp),DIMENSION(3):: vector
-REAL(dp),DIMENSION(3,3):: Huc !Base vectors of the unit cell
+REAL(dp),DIMENSION(3,3),INTENT(IN):: Huc !Base vectors of unit cell (MUST NOT be modified by options)
 REAL(dp),DIMENSION(3,3):: H   !Base vectors of the supercell
 REAL(dp),DIMENSION(3,3):: HS  !Copy of H for shells
 REAL(dp),DIMENSION(3,3):: ORIENT    !crystalographic orientation

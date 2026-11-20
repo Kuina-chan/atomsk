@@ -32,7 +32,7 @@ MODULE mode_normal
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 16 April 2024                                    *
+!* Last modification: P. Hirel - 16 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -131,6 +131,12 @@ IF(verbosity==4) THEN
   CALL WRITE_XYZ(H,P,tempcomment,AUXNAMES,AUX,temp,'sxyz ')
 ENDIF
 IF(nerr>0 .OR. .NOT.ALLOCATED(P)) GOTO 1000
+!
+!If the number of atoms is small, consider that it is a unit cell
+!and save the cell vectors into Huc(:,:)
+IF( SIZE(P,1)<10 ) THEN
+  Huc(:,:) = H(:,:)
+ENDIF
 !
 !
 !

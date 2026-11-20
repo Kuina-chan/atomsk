@@ -9,7 +9,7 @@ MODULE read_cla
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 12 Nov. 2026                                     *
+!* Last modification: P. Hirel - 19 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -153,10 +153,19 @@ DO WHILE(i<SIZE(cla))
     i=i+1
     m=m+1
     READ(cla(i),*,END=130,ERR=130) mode_param(m)
-    !Detect if a second lattice constant (c) or chiral indices must be read
+    !Detect if a second/third lattice constant (b,c) or chiral indices must be read
     SELECT CASE(StrDnCase(temp))
+    CASE("olivine")
+      !Get lattice constant b
+      i=i+1
+      m=m+1
+      READ(cla(i),*,END=130,ERR=130) mode_param(m)
+      !Get lattice constant c
+      i=i+1
+      m=m+1
+      READ(cla(i),*,END=130,ERR=130) mode_param(m)
     CASE("graphite","hcp","wurtzite","wz","c14","c36","l10","l1_0","limo2", &
-        & "st","bct","fct")
+        & "st","bct","fct","tper","tetragonal-perovskite")
       !Get lattice constant c
       i=i+1
       m=m+1
