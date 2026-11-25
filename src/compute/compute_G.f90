@@ -30,7 +30,7 @@ MODULE cmpt_G
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 15 Dec. 2025                                     *
+!* Last modification: P. Hirel - 05 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -90,7 +90,7 @@ INTEGER,DIMENSION(:,:),ALLOCATABLE,INTENT(INOUT):: NeighList1, NeighList2  !list
 REAL(dp):: alpha, alpha_tmp !angles between two vectors
 REAL(dp):: theta_max  !if angle between vectors in Pneigh and Qneigh exceed this value, exclude them
 REAL(dp):: NeighFactor !%of tolerance in the cutoff for neighbor search
-REAL(dp),PARAMETER:: radius=8.d0 !R for neighbour search (6A should be enough to find neighbours in any structure)
+REAL(dp),PARAMETER:: radius=6.d0 !R for neighbour search (6A should be enough to find neighbours in any structure)
 REAL(dp):: cutoff      !cutoff for neighbor search
 REAL(dp):: d1n, d2n, angle, tempreal
 REAL(dp),DIMENSION(3,3):: test_matrix
@@ -100,7 +100,6 @@ REAL(dp),DIMENSION(:),ALLOCATABLE:: Stemp
 REAL(dp),DIMENSION(:),ALLOCATABLE:: work_array
 REAL(dp),DIMENSION(:,:),ALLOCATABLE:: IdMat, Q_plus
 REAL(dp),DIMENSION(:,:),ALLOCATABLE:: S, V_NN
-REAL(dp),DIMENSION(:,:),POINTER:: Ppoint !pointer to the system to build reference
 REAL(dp),DIMENSION(:,:),ALLOCATABLE:: P_neigh, Q_neigh, P_matrix, Q_matrix, P_neigh_tmp, Q_matrix_copy
 REAL(dp),DIMENSION(:,:),ALLOCATABLE:: PosList1, PosList2 !list of positions of neighbors of one atom
 REAL(dp),DIMENSION(:,:,:),ALLOCATABLE:: Delta_G, Delta_G_matrix, Delta_G_tmp
@@ -135,15 +134,17 @@ IF(ALLOCATED(G)) DEALLOCATE(G)
 !Cutoff for neighbour search: an initial value of 6 A
 !should be enough to find some neighbors in any system
 !This value will be adjusted later
-cutoff = 4.d0
+cutoff = 6.d0
 !Work with neighbours that are closer than neighbour #NNmin
 !NOTE: first neighbours shell count 8 atoms in bcc, 12 atoms in fcc
 !     However it counts only 6 atoms in NaCl structure. This will be adjusted later on
-NNmin = 6
+NNmin = 3
 !After the neighbor search, neighbors will be sorted by increasing distance
 !Neighbor #NNmin will be at distance d
 !Only neighbors within a distance d*NeighFactor will be kept and used to compute G
-!Default value of 1.2 is expected to be robust for simple lattices (fcc, bcc)
+!We want to captude 1st neighbors, but leave out the 2nd neighbors
+!In fcc lattice the ratio between 2nd and 1st neighbors is sqrt(2)=~1.41
+!In bcc lattice it is about 1.155, which is much smaller
 NeighFactor = 1.1d0
 !Then, neighbours in reference (Pneigh) and in system (Qneigh) will be compared
 !If position vectors form an angle greater than theta_max, they will be excluded from calculation
@@ -221,7 +222,7 @@ ELSE
     tempreal = 0.1d0*MAXVAL(aentries(:,2))
     IF( n==2 ) THEN
       !Compare relative concentrations of the two elements
-      IF( aentries(1,2)>0.1d0*tempreal .AND. aentries(2,2)>0.1*tempreal ) THEN
+      IF( aentries(1,2)>tempreal .AND. aentries(2,2)>tempreal ) THEN
         !All elements are present in large number => binary material
         !=> the default NeighFactor will probably be too small, use larger value
         IF( DABS(aentries(1,2)-aentries(2,2)) < tempreal ) THEN
@@ -348,71 +349,19 @@ IF( .NOT.firstref ) THEN
   !or reference is a unit cell
   IF( ucref ) THEN
     !A unit cell was provided: use it to construct reference environments
-    Ppoint => P1
     CALL ATOMSK_MSG(4070,(/""/),(/1.d0/))
-    !Each atom in the unit cell is considered as a separate "environment"
-    !This may create duplicates, but it is necessary in materials where atoms
-    !of same species have different environments
-    ALLOCATE( Pref(SIZE(Ppoint,1),21,6) )
-    Pref(:,:,:) = 0.d0
+    !Build "reference" environments by averaging environments found in unit cell
+    CALL AVG_ENV(H1,P1,NeighList1,Pref,NeighFactor,siteindex)
+    !siteindex(:) contains the site for each atom in unit cell
+    !This is not what we want: we want the site index for each atom in P2
     !Allocate an array to save, for each atom in system2, the site it belongs to
+    IF(ALLOCATED(siteindex)) DEALLOCATE(siteindex)
     ALLOCATE(siteindex(SIZE(P2,1)))
     siteindex(:) = 0
-    !Loop on all atoms in the unit cell
-    DO iat=1,SIZE(Ppoint,1)
-      !Use neighbor list from unit cell, save it in PosList2
-      CALL NEIGHBOR_POS(H1,Ppoint,Ppoint(iat,1:3),NeighList1(iat,:),ALLOCATED(NeighList1),radius,PosList2)
-      !
-      !Now PosList2(:,:) contains the cartesian positions of all neighbors in the cutoff,
-      !their distance to the atom #iat, and their indices.
-      !Sort them by increasing distance:
-      CALL BUBBLESORT(PosList2,4,'up  ',newindex)
-      !
-      !Get the relative positions of neighbors with respect to atom #iat
-      !Keep only neighbors that are within NeighFactor times the distance of NNmin neighbor
-      Nneighbors = 0
-      j = MIN( NNmin , SIZE(PosList2,1) )
-      IF(.NOT.usercutoff) cutoff = NeighFactor * PosList2(j,4)
-      DO j=1,MIN(20,SIZE(PosList2,1))
-        !Shift all neighbours positions so the central atom is at (0,0,0)
-        PosList2(j,1:3) = PosList2(j,1:3) - Ppoint(iat,1:3)
-        IF( PosList2(j,4) <= NeighFactor*PosList2(NNmin,4) ) THEN
-          !IF( NINT(P2(NINT(PosList2(j,5)),4))==NINT(P2(NINT(PosList2(1,5)),4)) ) THEN
-            !Keep this neighbor
-            Nneighbors = Nneighbors+1
-          !ELSE
-            !Ignore this neighbor (not same species as first neighbor)
-          !ENDIF
-        ELSE
-          !Wipe out the rest of the list
-          PosList2(j+1:,:) = 0.d0
-          EXIT
-        ENDIF
-      ENDDO
-      !
-      !Each atom in the unit cell is considered as a "new" environment
-      !This may create duplicates, but it is necessary in materials where atoms
-      !of same species may have different environments
-      !Save the index of the site for atom #iat
-      siteindex(iat) = iat
-      !Central atom is at Pref(iat,1,1:3) = (0,0,0)
-      !Save species of central atom for this site
-      Pref(iat,1,4) = P1(iat,4)
-      !Set counter of atoms for this type of atom site
-      Pref(iat,1,5) = 1.d0
-      !Save number of neighbors for this site
-      Pref(iat,1,6) = DBLE(Nneighbors)
-      !Simply store rel. pos. of neighbors of atom #iat in Pref(iat,:,:)
-      DO k=1,Nneighbors
-        Pref(iat,k+1,1:3) = PosList2(k,1:3)
-        n = NINT(PosList2(k,5))
-        Pref(iat,k+1,4) = P1(n,4)
-      ENDDO
-    ENDDO
+    !NOTE: siteindex(:) will be filled later on
     !
   ELSE
     !No reference provided at all: construct reference environments from P2
-    Ppoint => P2
     CALL ATOMSK_MSG(4070,(/""/),(/2.d0/))
     !Build "reference" environments by averaging environments found in system 2
     CALL AVG_ENV(H2,P2,NeighList2,Pref,NeighFactor,siteindex)
@@ -429,57 +378,12 @@ IF( .NOT.firstref ) THEN
   ENDIF
   !
   !Count number of different environments that were found
-  IF( ucref ) THEN
-    Nsites = SIZE(Pref,1)
-  ELSE
-    Nsites = MAXVAL(siteindex)
-  ENDIF
+  Nsites = SIZE(Pref,1)
   IF( Nsites<=0 ) THEN
     !No atomic environment found: cannot compute anything
     CALL ATOMSK_MSG(4830,(/""/),(/0.d0/))
     nerr = nerr+1
     GOTO 1000
-  ENDIF
-  !
-  !Check the occurrence of environments, and remove those that have a very low occurrence
-  IF( (.NOT.ucref) .AND. Nsites>0 ) THEN
-    !Double loop on all types of sites
-    DO i=1,SIZE(Pref,1)-1
-      DO j=i+1,SIZE(Pref,1)
-        !Compare the atomic number of central atoms in sites #i and #j
-        IF( NINT(Pref(i,1,4))>0 .AND. NINT(Pref(i,1,4)) == NINT(Pref(j,1,4)) ) THEN
-          !Sites i and j have the same central atom
-          !Verify if one of them has a very low occurrence, or has very few neighbours
-          IF( Pref(i,1,5) <= MAX(10,NINT(Pref(j,1,5)/10.d0)) .OR. Pref(i,1,6)<3 &
-            & .OR. .NOT.ANY(NINT(Pref(i,2:,4))>0)  ) THEN
-            !Site of type #i has a very low occurrence compared to site #j
-            !Add its occurrence to the site type #j
-            Pref(j,1,5) = Pref(j,1,5)+Pref(i,1,5)
-            !Delete this type of site from the list
-            Pref(i,:,:) = 0.d0
-            !Update total number of types of sites
-            Nsites = Nsites-1
-            !Update siteindex: for all atoms in site #i, change site to type #j
-            DO k=1,SIZE(siteindex)
-              IF(siteindex(k)==i) siteindex = j
-            ENDDO
-          ELSEIF( Pref(j,1,5) <= MAX(10,NINT(Pref(i,1,5)/10.d0)) .OR. Pref(j,1,6)<3 &
-            & .OR. .NOT.ANY(NINT(Pref(j,2:,4))>0)  ) THEN
-            !Site of type #j has a very low occurrence compared to site #i
-            !Add its occurrence to the site type #i
-            Pref(i,1,5) = Pref(i,1,5)+Pref(j,1,5)
-            !Delete it from the list
-            Pref(j,:,:) = 0.d0
-            !Update total number of types of sites
-            Nsites = Nsites-1
-            !Update siteindex: for all atoms in site #j, change site to type #i
-            DO k=1,SIZE(siteindex)
-              IF(siteindex(k)==j) siteindex = i
-            ENDDO
-          ENDIF
-        ENDIF
-      ENDDO
-    ENDDO
   ENDIF
   !
   IF( Nsites<=0 ) THEN
@@ -491,60 +395,6 @@ IF( .NOT.firstref ) THEN
   !
   !Display number of environments on screen
   CALL ATOMSK_MSG(4071,(/""/),(/DBLE(Nsites)/))
-  !
-  !If user did not provide computation parameter, adjust parameters according to environments that were found
-  IF( .NOT.usercutoff .OR. .NOT.userthetamax ) THEN
-    !For each reference site, adjust cut-off to first neighbour shell,
-    !and theta_max to half
-    DO i=1,SIZE(Pref,1)
-      !Compute distance to first neighbours
-      DO j=1,SIZE(Pref,2)
-
-      ENDDO
-      !Compute angle between neighbours
-    ENDDO
-  ENDIF
-  !
-  !Write some debugging information
-  IF( verbosity==4 ) THEN
-    IF( ALLOCATED(Pref) .AND. SIZE(Pref,1)>0 ) THEN
-      !For each site, write position of central atom (that should always be (0,0,0))
-      !and positions of neighbors into a XYZ file named "atomsk_site_i.xyz" for visualization
-      msg = " ATOMIC  ENVIRONMENTS  USED  TO  COMPUTE  NYE  TENSOR:"
-      CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
-      DO i=1,MIN(Nsites,SIZE(Pref,1))
-        !PRINT*, "Site #", i, ": ", NINT(Pref(i,1,5)), " atoms in this site"
-        !Check if number of neighbours for site #i is positive
-        IF( NINT(Pref(i,1,6))>0 ) THEN
-          WRITE(msg,*) i
-          OPEN(UNIT=23,FILE="atomsk_site_"//TRIM(ADJUSTL(msg))//".xyz",FORM="FORMATTED")
-          WRITE(23,*) NINT(Pref(i,1,6))+1
-          WRITE(23,*) "# Averaged environment for site #", i
-          CALL ATOMSPECIES(Pref(i,1,4),species)
-          WRITE(msg,*) i
-          WRITE(temp,*) NINT(Pref(i,1,6))
-          WRITE(23,'(a2,3X,3f16.8)') species, Pref(i,1,1:3)
-          WRITE(msg,*) "  Site # "//TRIM(ADJUSTL(msg))//" occupied by "//species// &
-                      & " atom, has "//TRIM(ADJUSTL(temp))//" neighbors:"
-          CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
-          DO j=2,NINT(Pref(i,1,6))+1
-            CALL ATOMSPECIES(Pref(i,j,4),species)
-            WRITE(23,'(a2,3X,3f16.8)') species, Pref(i,j,1:3)
-            WRITE(msg,'(8X,a2,3X,3f12.3)') species, Pref(i,j,1:3)
-            CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
-          ENDDO
-          CLOSE(23)
-        ENDIF
-      ENDDO
-      OPEN(UNIT=23,FILE="atomsk_siteindex.txt",FORM="FORMATTED")
-      WRITE(23,*) SIZE(Ppoint,1)
-      WRITE(23,*) "# Atomsk AVG_ENV: atom id and type of site they occupy"
-      DO i=1,SIZE(siteindex,1)
-        WRITE(23,*) i, siteindex(i)
-      ENDDO
-      CLOSE(23)
-    ENDIF
-  ENDIF
   !
   !If a unit cell was provided, then for each atom in system2, find its site type
   IF( ucref ) THEN
@@ -568,17 +418,26 @@ IF( .NOT.firstref ) THEN
       !If only one site has a positive score, we are done
       !Otherwise (i.e. if several sites have a non-zero score),
       !then we have to use another criterion to discriminate them
-      IF( SUM(sitescore(:))>1 ) THEN
+      !IF( SUM(sitescore(:))>1 ) THEN
         !Try to disciminate sites by comparing number of neighbours
 
-      ENDIF
+      !ENDIF
       !Save site type in array siteindex(:)
       siteindex(i) = MAXLOC(sitescore(:),DIM=1)
     ENDDO
     IF(ALLOCATED(sitescore)) DEALLOCATE(sitescore)
+    IF( verbosity>=4 ) THEN
+      OPEN(UNIT=23,FILE="atomsk_siteindexG.txt",FORM="FORMATTED")
+      WRITE(23,*) SIZE(siteindex)
+      WRITE(23,*) "# Atomsk COMPUTE_G: atom id and type of site they occupy"
+      DO i=1,SIZE(siteindex,1)
+        WRITE(23,*) i, siteindex(i)
+      ENDDO
+      CLOSE(23)
+    ENDIF
   ENDIF !end if(ucref)
   !
-  NULLIFY(Ppoint)
+  !NULLIFY(Ppoint)
   !
 ENDIF
 !
@@ -588,7 +447,9 @@ ENDIF
 !**********************************************************************************
 !         COMPUTE  LATTICE  CORRESPONDENCE  TENSOR  G  FOR  EACH  ATOM
 !**********************************************************************************
-CALL ATOMSK_MSG(4062,(/""/),(/0.d0/))
+!CALL ATOMSK_MSG(4062,(/""/),(/0.d0/))
+WRITE(msg,*) "===   BEGIN  LOOP  ON  ALL  ATOMS  TO  COMPUTE  G   ==="
+CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
 !
 ALLOCATE(G(SIZE(P2,1),3,3))
 G(:,:,:) = 0.d0
@@ -603,6 +464,7 @@ DO iat=1,SIZE(P2,1)
   !
   progress = progress+1
   !
+  Nneighbors=0
   IF(ALLOCATED(V_NN)) DEALLOCATE(V_NN)
   IF(ALLOCATED(PosList1)) DEALLOCATE(PosList1)
   IF(ALLOCATED(PosList2)) DEALLOCATE(PosList2)
@@ -620,13 +482,14 @@ DO iat=1,SIZE(P2,1)
   IF( firstref ) THEN
     !The system in "filefirst" is used as reference
     !Search for neighbors of atom #iat in the first system
-    CALL NEIGHBOR_POS(H1,P1(:,:),P1(iat,1:3),NeighList1(iat,:),ALLOCATED(NeighList1),radius,PosList1)
+    CALL NEIGHBOR_POS(H1,P1(:,:),iat,P1(iat,1:3),NeighList1(iat,:),ALLOCATED(NeighList1),radius,PosList1)
     !
     IF( SIZE(PosList1,1)>=3 ) THEN
       !Now PosList1(:,:) contains the cartesian positions of all neighbors in the radius,
       !their distance to the atom #iat, and their indices.
       !Sort them by increasing distance:
       CALL BUBBLESORT(PosList1,4,'up  ',newindex)
+      IF(ALLOCATED(newindex)) DEALLOCATE(newindex)
       !
       !Determine cut-off based on distance to neighbour #NNmin
       j = MIN( NNmin , SIZE(PosList1,1) )
@@ -661,9 +524,9 @@ DO iat=1,SIZE(P2,1)
           ENDIF
         ENDIF
       ENDDO
-      !We don't need PosList1 for this atom anymore
-      IF(ALLOCATED(PosList1)) DEALLOCATE(PosList1)
     ENDIF
+    !We don't need PosList1 for this atom anymore
+    IF(ALLOCATED(PosList1)) DEALLOCATE(PosList1)
     !
     WRITE(msg,*) "SYSTEM 1: atom #", iat, "(", SIZE(V_NN,1), " neighbors)"
     CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
@@ -698,77 +561,18 @@ DO iat=1,SIZE(P2,1)
     !Unit cell was provided as reference, or no reference at all
     !The "reference" for atom #iat is constructed on-the-fly from the environments in Pref(:,:,:)
     IF( siteindex(iat)==0 ) THEN
-      !The type of site for this atom was not determined before
-      !Determine it now
-      IF( ucref ) THEN
-        !A unit cell was provided as a reference
-        !It means that "reference sites" in Pref were constructed by assuming
-        !that each atom in the unit cell belongs to a different "site".
-        !This means that for a given atom species, several "references" are possible
-        !Parse all reference sites that match species of atom #iat, and decide which
-        !one is the best fit. The "score" of each reference site is saved in "sitescore"
-        !NB: in the case where two (or more) atoms actually have exactly the same
-        !environment in the unit cell, they should have the same score, and it doesn't matter
-        !which one is taken as "reference"
-        !
-        IF( .NOT.ALLOCATED(sitescore) ) THEN
-          ALLOCATE( sitescore(SIZE(Pref,1)) )
-        ENDIF
-        sitescore(:) = 0
-        !
-        !Determine number of neighbours of atom #iat
-        !Array S will contain atom species, and atom count for reference and for analyzed system
-        !IF(ALLOCATED(S)) DEALLOCATE(S)
-        !ALLOCATE(S(SIZE(Pref,1),3))
-        !S(:,:) = 0.d0
-        Nneighbors = 0
-        DO k=1,SIZE(NeighList2,2)  !loop on neighbours of atom #iat
-          !If neighbour index is zero there are no more neighbours => exit loop on k
-          IF( NeighList2(iat,k)==0 ) EXIT
-          !Otherwise, increment number of neighbours of atom #iat
-          Nneighbors = Nneighbors+1
-          !Add current neighbour #k to the corresponding species counter in S
-!           m = 1
-!           DO m=1,SIZE(S,1)
-!             IF( NINT(NeighList2(iat,k)) == NINT(S(m,1)) ) THEN
-!               S(m,2) = S(m,2) + 1.d0
-!               EXIT
-!             ELSEIF( NINT(S(m,1))==0 ) THEN
-!               S(m,1) = P2(iat,4)
-!               S(m,2) = S(m,2) + 1.d0
-!             ENDIF
-!           ENDDO
-        ENDDO  !end k
-        DO k=1,MIN(Nsites,SIZE(Pref,1))
-          IF( NINT(P2(iat,4))==NINT(Pref(k,1,4)) ) THEN
-            !Site #k matches the species of atom #iat
-            sitescore(k) = sitescore(k) + 1
-            !Check if number of neighbours coincide
-!             IF( NINT(Pref(k,1,6)) == Nneighbors ) THEN
-!               sitescore(k) = sitescore(k) + 1
-!             ENDIF
-            !Check if species of neighbours coincide
-
-            !Check if relative positions of neighbours coincide
-
-          ENDIF
-        ENDDO
-        !Save index of site with maximum score
-        siteindex(iat) = MAXLOC(sitescore(:),1)
-        !Free memory
-        IF(ALLOCATED(S)) DEALLOCATE(S)
-      ELSE
+      !The type of site for this atom was not determined before: determine it now
         !No reference provided at all
         !It means that "reference sites" in Pref were constructed by averaging
         !sites from system 2, i.e. each atom species has its own reference site
         !=> The type of site can be determined simply from atom species
-        DO k=1,MIN(Nsites,SIZE(Pref,1))
+        DO k=1,SIZE(Pref,1)
           IF( NINT(P2(iat,4))==NINT(Pref(k,1,4)) ) THEN
             siteindex(iat) = k
             EXIT
           ENDIF
         ENDDO
-      ENDIF
+!       ENDIF
     ENDIF
     IF( siteindex(iat)>0 ) THEN
       !We know that atom #iat occupies a site of type siteindex(iat) in Pref
@@ -798,13 +602,14 @@ DO iat=1,SIZE(P2,1)
   !
   !Now the array P_neigh contains the relative coordinates of neighbors of atom #iat in perfect env.
   !Compute positions of neighbors of atom #iat in second system
-  CALL NEIGHBOR_POS(H2,P2,P2(iat,1:3),NeighList2(iat,:),ALLOCATED(NeighList2),radius,PosList2)
+  CALL NEIGHBOR_POS(H2,P2,iat,P2(iat,1:3),NeighList2(iat,:),ALLOCATED(NeighList2),radius,PosList2)
   !
   IF( SIZE(PosList2,1)>=NNmin ) THEN
     !Now PosList2(:,:) contains the cartesian positions of all neighbors in the radius,
     !and their distance to the atom #i.
     !Sort them by increasing distance:
     CALL BUBBLESORT(PosList2,4,'up  ',newindex)
+    IF(ALLOCATED(newindex)) DEALLOCATE(newindex)
     !
     !Determine cut-off based on distance to neighbour #NNmin
     j = MIN( NNmin , SIZE(PosList2,1) )
@@ -815,11 +620,11 @@ DO iat=1,SIZE(P2,1)
       !Keep only the first neighbors, save them in V_NN
       !Make sure to keep at least NNmin neighbors: compare distances to that of neighbor #NNmin
       Nneighbors=0
-      DO j=1,SIZE(PosList2,1)
-        IF( PosList2(j,4) <= cutoff ) THEN
+      DO j=1,MIN( NINT(Pref(siteindex(iat),1,6)) , SIZE(PosList2,1) )
+        !IF( PosList2(j,4) <= cutoff ) THEN
           !This neighbor is about as close as the 3rd neighbor => keep it
           Nneighbors=Nneighbors+1
-        ENDIF
+        !ENDIF
       ENDDO
       !Clean neighbor list for this atom
       NeighList2(iat,:) = 0
@@ -827,8 +632,8 @@ DO iat=1,SIZE(P2,1)
       V_NN(:,:) = 0.d0
       Nneighbors=0
       m=0
-      DO j=1,SIZE(PosList2,1)
-        IF( PosList2(j,4) <= cutoff ) THEN
+      DO j=1,MIN( NINT(Pref(siteindex(iat),1,6)) , SIZE(PosList2,1) )
+        !IF( PosList2(j,4) <= cutoff ) THEN
           !This neighbor is closer than NNmin-th neighbor => keep it
           Nneighbors=Nneighbors+1
           V_NN(Nneighbors,:) = PosList2(j,1:3)
@@ -837,18 +642,20 @@ DO iat=1,SIZE(P2,1)
             m=m+1
             NeighList2(iat,m) = NINT(PosList2(j,5))
           ENDIF
-        ENDIF
+        !ENDIF
       ENDDO
       !
     ELSE  !i.e. if .NOT.firstref
       !Unit cell was provided as reference, or no reference at all
-      !The "reference" for atom #iat is constructed on-the-fly from the environments in Pref(:,:,:)
+      !The "reference" for atom #iat was constructed on-the-fly from the environments in Pref(:,:,:)
+      !Pref(iat,1,6) = number of neighbors in reference
+      !Nneighbors=MIN( SIZE(PosList2,1) , NINT(Pref(siteindex(iat),1,6)) )
       Nneighbors=0
-      DO j=1,SIZE(PosList2,1)
-        IF( PosList2(j,4) <= cutoff ) THEN
+      DO j=1,MIN( NINT(Pref(siteindex(iat),1,6)) , SIZE(PosList2,1) )
+        !IF( PosList2(j,4) <= cutoff ) THEN
           !This neighbor is about as close as the NNmin-th neighbor => keep it
           Nneighbors=Nneighbors+1
-        ENDIF
+        !ENDIF
       ENDDO
       !Clean neighbor list for this atom
       NeighList2(iat,:) = 0
@@ -856,8 +663,8 @@ DO iat=1,SIZE(P2,1)
       V_NN(:,:) = 0.d0
       Nneighbors=0
       k=0
-      DO j=1,SIZE(PosList2,1)
-        IF( PosList2(j,4) <= cutoff ) THEN
+      DO j=1,MIN( NINT(Pref(siteindex(iat),1,6)) , SIZE(PosList2,1) )
+        !IF( PosList2(j,4) <= cutoff ) THEN
           !This neighbor is closer than the NNmin-th neighbor => keep it
           Nneighbors=Nneighbors+1
           V_NN(Nneighbors,:) = PosList2(j,1:3)
@@ -866,7 +673,7 @@ DO iat=1,SIZE(P2,1)
             k=k+1
             NeighList2(iat,k) = NINT(PosList2(j,5))
           ENDIF
-        ENDIF
+        !ENDIF
       ENDDO
     ENDIF  !end if firstref
   ENDIF   !end if size(PosList2)>=3
@@ -991,13 +798,13 @@ DO iat=1,SIZE(P2,1)
       IF(ALLOCATED(Q_neigh)) DEALLOCATE(Q_neigh)
       !
       IF (verbosity==4) THEN
-        WRITE(msg,*) '-----Neighbors used for calculation of G----'
+        WRITE(msg,*) '-----Corresponding neighbors in P and Q for calculating G----'
         CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
         DO j=1,nb_neigh
-          WRITE(msg,'(3f12.4,a3,3f12.4)') P_matrix(j,1:3), " | ", Q_matrix(j,1:3)
+          WRITE(msg,'(3f12.4,a5,3f12.4)') P_matrix(j,1:3), " <-> ", Q_matrix(j,1:3)
           CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
         ENDDO
-        WRITE(msg,*) '--------------------------------------------'
+        WRITE(msg,*) '-------------------------------------------------------------'
         CALL ATOMSK_MSG(999,(/TRIM(msg)/),(/0.d0/))
       ENDIF
       !
@@ -1075,6 +882,18 @@ DO iat=1,SIZE(P2,1)
           !Compute  G = Q+ * P   (Eq.17)
           !Save the final tensor G for atom #iat
           G(iat,:,:) = MATMUL(Q_plus,P_matrix)
+          !
+          !If no reference was provided, smooth out the values
+          IF( .NOT.firstref ) THEN
+            DO i=1,3
+              DO j=1,3
+                IF( DABS(G(iat,i,j)) < 1.d-6 ) THEN
+                  G(iat,i,j) = 0.d0
+                ENDIF
+              ENDDO
+            ENDDO
+          ENDIF
+          !
         ENDIF
         !
         !

@@ -18,7 +18,7 @@ MODULE modes
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 22 Oct. 2026                                     *
+!* Last modification: P. Hirel - 19 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -381,6 +381,16 @@ CASE('create')
     READ(mode_param(i),*,END=7000,ERR=7000) NT_mn(1)
     i=i+1
     READ(mode_param(i),*,END=7000,ERR=7000) NT_mn(2)
+  ELSEIF( StrDnCase(create_struc)=="olivine" ) THEN
+    !Read lattice constants b and c
+    READ(mode_param(i+1),*,END=7000,ERR=7000) u
+    !No error => save value of b in create_a0(2)
+    i=i+1
+    create_a0(2) = u
+    READ(mode_param(i+1),*,END=7000,ERR=7000) u
+    !No error => save value of c in create_a0(3)
+    i=i+1
+    create_a0(3) = u
   ELSE
     !Try reading another lattice constant (c)
     READ(mode_param(i+1),*,END=502,ERR=502) u

@@ -9,7 +9,7 @@ MODULE read_cla
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 14 Sept. 2026                                    *
+!* Last modification: P. Hirel - 19 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -153,10 +153,19 @@ DO WHILE(i<SIZE(cla))
     i=i+1
     m=m+1
     READ(cla(i),*,END=130,ERR=130) mode_param(m)
-    !Detect if a second lattice constant (c) or chiral indices must be read
+    !Detect if a second/third lattice constant (b,c) or chiral indices must be read
     SELECT CASE(StrDnCase(temp))
+    CASE("olivine")
+      !Get lattice constant b
+      i=i+1
+      m=m+1
+      READ(cla(i),*,END=130,ERR=130) mode_param(m)
+      !Get lattice constant c
+      i=i+1
+      m=m+1
+      READ(cla(i),*,END=130,ERR=130) mode_param(m)
     CASE("graphite","hcp","wurtzite","wz","c14","c36","l10","l1_0","limo2", &
-        & "st","bct","fct")
+        & "st","bct","fct","tper","tetragonal-perovskite")
       !Get lattice constant c
       i=i+1
       m=m+1
@@ -444,7 +453,7 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(clarg)
     !Read the species of atom to add
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     IF( LEN_TRIM(temp)<=2 ) THEN
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     ELSE
@@ -452,7 +461,7 @@ DO WHILE(i<SIZE(cla))
     ENDIF
     !Read keyword: must be "at", "near" or "random"
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     temp = TRIM(ADJUSTL(StrDnCase(temp)))
     IF( .NOT.( temp(1:2)=="at" .OR. temp(1:1)=="@" .OR. temp(1:4)=="near" .OR. &
       &        temp(1:6)=="random" .OR. temp(1:3)=="rel"  ) ) THEN
@@ -465,21 +474,21 @@ DO WHILE(i<SIZE(cla))
     CASE("at","@")
       !Read coordinate x of atom to add
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       IF( SCAN(temp,"*")>0 ) temp = "'"//TRIM(ADJUSTL(temp))//"'"
       IF( SCAN(temp,'0123456789')==0 .AND. INDEX(temp,'INF')==0 .AND. &
         & INDEX(temp,'box')==0 .AND. INDEX(temp,'BOX')==0) GOTO 120
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       !Read coordinate y of atom to add
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       IF( SCAN(temp,"*")>0 ) temp = "'"//TRIM(ADJUSTL(temp))//"'"
       IF( SCAN(temp,'0123456789')==0 .AND. INDEX(temp,'INF')==0 .AND. &
         & INDEX(temp,'box')==0 .AND. INDEX(temp,'BOX')==0) GOTO 120
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       !Read coordinate z of atom to add
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       IF( SCAN(temp,"*")>0 ) temp = "'"//TRIM(ADJUSTL(temp))//"'"
       IF( SCAN(temp,'0123456789')==0 .AND. INDEX(temp,'INF')==0 .AND. &
         & INDEX(temp,'box')==0 .AND. INDEX(temp,'BOX')==0) GOTO 120
@@ -488,26 +497,26 @@ DO WHILE(i<SIZE(cla))
     CASE("relative","rel")
       !Read index of atom near which the new atom must be added
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       READ(temp,*,END=120,ERR=120) tempreal
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       !Read coordinate x of atom to add
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       IF( SCAN(temp,"*")>0 ) temp = "'"//TRIM(ADJUSTL(temp))//"'"
       IF( SCAN(temp,'0123456789')==0 .AND. INDEX(temp,'INF')==0 .AND. &
         & INDEX(temp,'box')==0 .AND. INDEX(temp,'BOX')==0) GOTO 120
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       !Read coordinate y of atom to add
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       IF( SCAN(temp,"*")>0 ) temp = "'"//TRIM(ADJUSTL(temp))//"'"
       IF( SCAN(temp,'0123456789')==0 .AND. INDEX(temp,'INF')==0 .AND. &
         & INDEX(temp,'box')==0 .AND. INDEX(temp,'BOX')==0) GOTO 120
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       !Read coordinate z of atom to add
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       IF( SCAN(temp,"*")>0 ) temp = "'"//TRIM(ADJUSTL(temp))//"'"
       IF( SCAN(temp,'0123456789')==0 .AND. INDEX(temp,'INF')==0 .AND. &
         & INDEX(temp,'box')==0 .AND. INDEX(temp,'BOX')==0) GOTO 120
@@ -516,14 +525,14 @@ DO WHILE(i<SIZE(cla))
     CASE("near")
       !Read index of atom near which the new atom must be added
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       READ(temp,*,END=120,ERR=120) tempreal
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       !
     CASE("random")
       !Read how many atoms must be inserted randomly in the system
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       READ(temp,*,END=120,ERR=120) tempreal
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       !
@@ -534,7 +543,7 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = '-add-shells'
     !read atom species for which the shells must be created
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     temp = ADJUSTL(temp)
     IF( LEN_TRIM(temp)<=2 .OR. temp=="all" ) THEN
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
@@ -555,17 +564,17 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(clarg)
     !Read crack mode (I, II or III)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     IF(temp.NE.'I' .AND. temp.NE.'II' .AND. temp.NE.'III') GOTO 120
     !Read type of crack displacements: "stress" or "strain"
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     IF(temp.NE.'stress' .AND. temp.NE.'strain') GOTO 120
     !Read stress intensity factor K
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     READ(temp,*,END=120,ERR=120) tempreal
     !Read first coordinate of crack tip (pos1)
@@ -584,40 +593,34 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     !Read direction along crack tip (X, Y or Z)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
       IF( SCAN(temp,"*")>0 ) temp = "'"//TRIM(ADJUSTL(temp))//"'"
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     IF( temp(1:1).NE.'x' .AND. temp(1:1).NE.'y' .AND. temp(1:1).NE.'z' .AND.  &
       & temp(1:1).NE.'X' .AND. temp(1:1).NE.'Y' .AND. temp(1:1).NE.'Z') GOTO 120
     !Read normal to plane of cut (X, Y or Z)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     IF( temp(1:1).NE.'x' .AND. temp(1:1).NE.'y' .AND. temp(1:1).NE.'z' .AND.  &
       & temp(1:1).NE.'X' .AND. temp(1:1).NE.'Y' .AND. temp(1:1).NE.'Z') GOTO 120
     !Read shear modulus (mu)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     READ(temp,*,END=120,ERR=120) tempreal
     !Read Poisson ratio (mu)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     READ(temp,*,END=120,ERR=120) tempreal
-    !if slashes are present (user wants to perform a division), replace them by a colon (:)
-    j = SCAN(options_array(ioptions),'/')
-    DO WHILE(j>0)
-      options_array(ioptions)(j:j) = ':'
-      j = SCAN(options_array(ioptions),'/')
-    ENDDO
   !
   CASE("-cell","-box","-change-cell","-change_cell","-change-box","-change_box")
     ioptions = ioptions+1
     options_array(ioptions) = "-cell"
     !Read direction
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     temp = TRIM(ADJUSTL(StrDnCase(temp)))
     SELECT CASE(temp)
     CASE( "h1","h2","h3",'x','y','z',"xx","yy","zz",'a','b','c', &
@@ -628,13 +631,13 @@ DO WHILE(i<SIZE(cla))
     END SELECT
     !Read operation to perform (add, rm, set)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     temp = TRIM(ADJUSTL(StrDnCase(temp)))
     IF( temp.NE."add" .AND. temp.NE."rm" .AND. temp.NE."set" ) GOTO 120
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     !Read value (real number)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     temp = TRIM(ADJUSTL(temp))
     IF( SCAN(temp,'0123456789')==0 ) GOTO 120
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
@@ -643,7 +646,7 @@ DO WHILE(i<SIZE(cla))
     ioptions = ioptions+1
     options_array(ioptions) = TRIM(clarg)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     IF(StrDnCase(temp)=="com") WRITE(temp,'(a1)') "0"
     READ(temp,*,END=120,ERR=120) j
     IF(j<0) WRITE(temp,'(a1)') "0"
@@ -677,7 +680,7 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(clarg)
     !read deformation direction (x, y or z)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     temp = TRIM(ADJUSTL(temp))
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     IF( temp(1:1).NE.'x' .AND. temp(1:1).NE.'y' .AND. temp(1:1).NE.'z' .AND.  &
@@ -719,7 +722,7 @@ DO WHILE(i<SIZE(cla))
     ioptions = ioptions+1
     options_array(ioptions) = TRIM(clarg)
 !     i=i+1
-!     READ(cla(i),*,END=400,ERR=400) temp
+!     READ(cla(i),'(a)',END=400,ERR=400) temp
 !       READ(temp,*,END=120,ERR=120) tempreal
 !     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
   !
@@ -755,19 +758,19 @@ DO WHILE(i<SIZE(cla))
         & INDEX(temp,'box')==0 .AND. INDEX(temp,'BOX')==0) GOTO 120
       !Read direction normal to loop plane
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       IF( temp(1:1).NE.'x' .AND. temp(1:1).NE.'y' .AND. temp(1:1).NE.'z' .AND.  &
         & temp(1:1).NE.'X' .AND. temp(1:1).NE.'Y' .AND. temp(1:1).NE.'Z') GOTO 120
       !Read dislocation loop radius
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       IF( SCAN(temp,"*")>0 ) temp = "'"//TRIM(ADJUSTL(temp))//"'"
       READ(temp,*,END=120,ERR=120) tempreal
       options_array(ioptions) = TRIM(options_array(ioptions))//" "//TRIM(temp)
       !Read the Burgers vector
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       options_array(ioptions) = TRIM(options_array(ioptions))//" "//TRIM(temp)
       !If we just read Miller indices, finish here
       !Otherwise, we just read a real number equal to bx => read by and bz
@@ -776,16 +779,16 @@ DO WHILE(i<SIZE(cla))
         READ(temp,*,END=120,ERR=120) tempreal
         !Read the coordinates by and bz of Burgers vector
         i=i+1
-        READ(cla(i),*,END=400,ERR=400) temp
+        READ(cla(i),'(a)',END=400,ERR=400) temp
         READ(temp,*,END=120,ERR=120) tempreal
         options_array(ioptions) = TRIM(options_array(ioptions))//" "//TRIM(temp)
         i=i+1
-        READ(cla(i),*,END=400,ERR=400) temp
+        READ(cla(i),'(a)',END=400,ERR=400) temp
         READ(temp,*,END=120,ERR=120) tempreal
         options_array(ioptions) = TRIM(options_array(ioptions))//" "//TRIM(temp)
         !Read Poisson ratio
         i=i+1
-        READ(cla(i),*,END=400,ERR=400) temp
+        READ(cla(i),'(a)',END=400,ERR=400) temp
         READ(temp,*,END=120,ERR=120) tempreal
         options_array(ioptions) = TRIM(options_array(ioptions))//" "//TRIM(temp)
       ENDIF
@@ -793,11 +796,11 @@ DO WHILE(i<SIZE(cla))
     ELSEIF( TRIM(temp)=="array" .OR. TRIM(temp)=="file" ) THEN
       !Last possiblity: read dislocation coordinates from a file
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       options_array(ioptions) = TRIM(options_array(ioptions))//" "//TRIM(temp)
       !Read Poisson ratio
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       READ(temp,*,END=120,ERR=120) tempreal
       options_array(ioptions) = TRIM(options_array(ioptions))//" "//TRIM(temp)
       !
@@ -817,7 +820,7 @@ DO WHILE(i<SIZE(cla))
       !READ(temp,*,END=120,ERR=120) tempreal
       !read the character of dislocation: edge, edge_add, edge_rm, screw, or mixed
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       temp = TRIM(ADJUSTL(temp))
       temp2 = temp !important for reading the Burgers vector afterwards
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
@@ -827,7 +830,7 @@ DO WHILE(i<SIZE(cla))
       IF( temp(1:4)=="edge" ) m=1
       !read the dislocation line direction (x, y or z)
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       temp = TRIM(ADJUSTL(temp))
       temp3 = temp !important for reading the Burgers vector afterwards
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
@@ -835,7 +838,7 @@ DO WHILE(i<SIZE(cla))
         & temp(1:1).NE.'X' .AND. temp(1:1).NE.'Y' .AND. temp(1:1).NE.'Z') GOTO 120
       !read the normal to cut plane (x, y or z)
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       temp = TRIM(ADJUSTL(temp))
       temp4 = temp !important for reading the Burgers vector afterwards
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
@@ -843,7 +846,7 @@ DO WHILE(i<SIZE(cla))
         & temp(1:1).NE.'X' .AND. temp(1:1).NE.'Y' .AND. temp(1:1).NE.'Z') GOTO 120
       !read the Burgers vector
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       IF( SCAN(temp,"*")>0 ) temp = "'"//TRIM(ADJUSTL(temp))//"'"
       READ(temp,*,END=120,ERR=120) tempreal
       IF(temp2=="mixed") THEN
@@ -851,13 +854,13 @@ DO WHILE(i<SIZE(cla))
         options_array(ioptions) = TRIM(options_array(ioptions))//" "//TRIM(temp)
         !Read b(2)
         i=i+1
-        READ(cla(i),*,END=400,ERR=400) temp
+        READ(cla(i),'(a)',END=400,ERR=400) temp
         IF( SCAN(temp,"*")>0 ) temp = "'"//TRIM(ADJUSTL(temp))//"'"
         READ(temp,*,END=120,ERR=120) tempreal
         options_array(ioptions) = TRIM(options_array(ioptions))//" "//TRIM(temp)
         !Read b(3)
         i=i+1
-        READ(cla(i),*,END=400,ERR=400) temp
+        READ(cla(i),'(a)',END=400,ERR=400) temp
         IF( SCAN(temp,"*")>0 ) temp = "'"//TRIM(ADJUSTL(temp))//"'"
         READ(temp,*,END=120,ERR=120) tempreal
         options_array(ioptions) = TRIM(options_array(ioptions))//" "//TRIM(temp)
@@ -868,26 +871,19 @@ DO WHILE(i<SIZE(cla))
       !read Poisson's ratio (only if it is of edge character)
       IF( m==1 ) THEN
         i=i+1
-        READ(cla(i),*,END=400,ERR=400) temp
+        READ(cla(i),'(a)',END=400,ERR=400) temp
         IF( SCAN(temp,"*")>0 ) temp = "'"//TRIM(ADJUSTL(temp))//"'"
         options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
         READ(temp,*,END=120,ERR=120) tempreal
       ENDIF
     ENDIF
-    !scan the final option line
-    !if slashes are present (user wants to perform a division), replace them by a colon (:)
-    j = SCAN(options_array(ioptions),'/')
-    DO WHILE(j>0)
-      options_array(ioptions)(j:j) = ':'
-      j = SCAN(options_array(ioptions),'/')
-    ENDDO
   !
   CASE("-disturb")
     ioptions = ioptions+1
     options_array(ioptions) = TRIM(clarg)
     !read the maximum displacement along X
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     READ(temp,*,END=120,ERR=120) tempreal
     tempreal = DABS(tempreal)
     WRITE(temp,*) tempreal
@@ -924,7 +920,7 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = "-duplicate"
     DO m=1,3
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       READ(temp,*,END=120,ERR=120) tempreal
     ENDDO
@@ -963,9 +959,9 @@ DO WHILE(i<SIZE(cla))
       i=i+1
       READ(cla(i),'(a)',END=400,ERR=400) temp
       temp = TRIM(ADJUSTL(temp))
-      IF( temp(1:1).NE.'x' .AND. temp(1:1).NE.'y' .AND. temp(1:1).NE.'z' .AND.  &
-        & temp(1:1).NE.'X' .AND. temp(1:1).NE.'Y' .AND. temp(1:1).NE.'Z' .AND.  &
-        & temp(1:3).NE.'all' ) GOTO 120
+      !IF( temp(1:1).NE.'x' .AND. temp(1:1).NE.'y' .AND. temp(1:1).NE.'z' .AND.  &
+      !  & temp(1:1).NE.'X' .AND. temp(1:1).NE.'Y' .AND. temp(1:1).NE.'Z' .AND.  &
+      !  & temp(1:3).NE.'all' ) GOTO 120
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     ELSE
       i=i-1
@@ -1068,7 +1064,7 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(clarg)
     !read the atom species or index that will be removed
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
   !
   CASE("-remove-doubles","-remove-double","-rmd")
@@ -1076,7 +1072,7 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(clarg)
     !Read the max. distance
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     READ(temp,*,END=120,ERR=120) tempreal
   !
@@ -1085,7 +1081,7 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(clarg)
     !read the name of the property to be removed
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
   !
   CASE("-remove-shells","-remove-shell","-rmshell","-rmshells")
@@ -1093,7 +1089,7 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(clarg)
     !read the atom species on which shells will be removed
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     IF( LEN_TRIM(temp)<=2 .OR. temp=="all" ) THEN
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     ELSE
@@ -1105,7 +1101,7 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = "-roll"
     !read the direction (x, y or z)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     IF( temp(1:1).NE.'x' .AND. temp(1:1).NE.'y' .AND. temp(1:1).NE.'z' .AND.  &
       & temp(1:1).NE.'X' .AND. temp(1:1).NE.'Y' .AND. temp(1:1).NE.'Z') THEN
       !No axis detected => error
@@ -1113,7 +1109,7 @@ DO WHILE(i<SIZE(cla))
     ENDIF
     !read the angle (degrees)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp2
+    READ(cla(i),'(a)',END=400,ERR=400) temp2
     j=SCAN(temp2,"°")
     IF(j>0) THEN
       temp2 = temp2(1:j-1)
@@ -1121,7 +1117,7 @@ DO WHILE(i<SIZE(cla))
     READ(temp2,*,END=120,ERR=120) tempreal
     !read the axis of rolling (x, y or z)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp3
+    READ(cla(i),'(a)',END=400,ERR=400) temp3
     IF( temp3(1:1).NE.'x' .AND. temp3(1:1).NE.'y' .AND. temp3(1:1).NE.'z' .AND.  &
       & temp3(1:1).NE.'X' .AND. temp3(1:1).NE.'Y' .AND. temp3(1:1).NE.'Z') THEN
       !No axis detected => error
@@ -1139,20 +1135,20 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(clarg)
     !Check if first
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     temp = TRIM(ADJUSTL(temp))
     IF( temp(1:3)=="com" ) THEN
       options_array(ioptions) = TRIM(options_array(ioptions))//' com '
       !read the axis of rotation (x, y, z, or Miller vector, or 3 real numbers)
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       temp = TRIM(ADJUSTL(temp))
     ENDIF
     !
     IF( temp=='x' .OR. temp=='X' .OR. temp=='y' .OR. temp=='Y' .OR. temp=='z' .OR.temp=='Z') THEN
       !Read the rotation angle
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp2
+      READ(cla(i),'(a)',END=400,ERR=400) temp2
       !Verify that it is a real number
       j=SCAN(temp2,'°')
       IF(j>0) temp2=temp2(:j-1)
@@ -1163,7 +1159,7 @@ DO WHILE(i<SIZE(cla))
       !It should be a Miller vector
       !Read the rotation angle
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp2
+      READ(cla(i),'(a)',END=400,ERR=400) temp2
       !Verify that it is a real number
       j=SCAN(temp2,'°')
       IF(j>0) temp2=temp2(:j-1)
@@ -1180,17 +1176,17 @@ DO WHILE(i<SIZE(cla))
       READ(temp,*,END=120,ERR=120) tempreal
       !Read the second real number
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp2
+      READ(cla(i),'(a)',END=400,ERR=400) temp2
       !Verify that it is a real number
       READ(temp2,*,END=120,ERR=120) tempreal
       !Read the third real number
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp3
+      READ(cla(i),'(a)',END=400,ERR=400) temp3
       !Verify that it is a real number
       READ(temp3,*,END=120,ERR=120) tempreal
       !Read the rotation angle
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp4
+      READ(cla(i),'(a)',END=400,ERR=400) temp4
       !Verify that it is a real number
       j=SCAN(temp4,'°')
       IF(j>0) temp4=temp4(:j-1)
@@ -1247,7 +1243,7 @@ DO WHILE(i<SIZE(cla))
       !A geometric region is defined
       !read the region geometry: 'cell', 'box', 'sphere', 'cylinder'
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       !IF( temp.NE.'box' .AND. temp.NE.'sphere' .AND. temp.NE.'cylinder' .AND. &
       !  & temp.NE.'prism' .AND. temp.NE.'torus' ) GOTO 120
@@ -1335,7 +1331,7 @@ DO WHILE(i<SIZE(cla))
         !READ(temp,*,END=120,ERR=120) tempreal
         !read the radius of the sphere
         i=i+1
-        READ(cla(i),*,END=400,ERR=400) temp
+        READ(cla(i),'(a)',END=400,ERR=400) temp
         IF( SCAN(temp,"*")>0 ) temp = "'"//TRIM(ADJUSTL(temp))//"'"
         options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
         IF( SCAN(temp,'0123456789')==0 .AND. INDEX(temp,'INF')==0 .AND. &
@@ -1344,7 +1340,7 @@ DO WHILE(i<SIZE(cla))
       ELSEIF(region_geom=='cylinder') THEN
         !read the axis of the cylinder
         i=i+1
-        READ(cla(i),*,END=400,ERR=400) temp
+        READ(cla(i),'(a)',END=400,ERR=400) temp
         temp = TRIM(ADJUSTL(temp))
         options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
         IF( temp(1:1).NE.'x' .AND. temp(1:1).NE.'y' .AND. temp(1:1).NE.'z' .AND.  &
@@ -1377,7 +1373,7 @@ DO WHILE(i<SIZE(cla))
       ELSEIF(region_geom=='cone') THEN
         !read the axis of the cone
         i=i+1
-        READ(cla(i),*,END=400,ERR=400) temp
+        READ(cla(i),'(a)',END=400,ERR=400) temp
         temp = TRIM(ADJUSTL(temp))
         options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
         IF( temp(1:1).NE.'x' .AND. temp(1:1).NE.'y' .AND. temp(1:1).NE.'z' .AND.  &
@@ -1412,7 +1408,7 @@ DO WHILE(i<SIZE(cla))
       ELSEIF(region_geom=='torus') THEN
         !read the axis (normal to the torus plane / to the base of pyramid)
         i=i+1
-        READ(cla(i),*,END=400,ERR=400) temp
+        READ(cla(i),'(a)',END=400,ERR=400) temp
         temp = TRIM(ADJUSTL(temp))
         options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
         IF( temp(1:1).NE.'x' .AND. temp(1:1).NE.'y' .AND. temp(1:1).NE.'z' .AND.  &
@@ -1457,31 +1453,31 @@ DO WHILE(i<SIZE(cla))
     ELSEIF( temp=='grid' ) THEN
       !Read the name of the file containing grid elements
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       !
     ELSEIF( temp=='list' ) THEN
       !Read the name of the file atom indices will be read from
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       !
     ELSEIF( temp=='prop' .OR. temp=='property' ) THEN
       !Atoms must be selected according to a property
       !Read name of the property
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       !Read criterion (will be interpreted later)
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       !
     ELSEIF( temp=='stl' .OR. temp=='STL' ) THEN
       !Atoms inside a 3-D model must be selected
       !Read name of the STL file
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       temp = TRIM(ADJUSTL(temp))
       temp2 = ""
       !Detect keywords "center", "scale" or "rescale", "fill", concatenate them into one string
@@ -1489,7 +1485,7 @@ DO WHILE(i<SIZE(cla))
               & StrDnCase(temp(1:5))=="scale"  .OR. StrDnCase(temp(1:4))=="fill"          )
         temp2 = TRIM(temp2)//TRIM(ADJUSTL(temp))
         i=i+1
-        READ(cla(i),*,END=400,ERR=400) temp
+        READ(cla(i),'(a)',END=400,ERR=400) temp
         temp = TRIM(ADJUSTL(temp))
       ENDDO
       !Copy the keywords
@@ -1500,11 +1496,11 @@ DO WHILE(i<SIZE(cla))
       !read number of atoms N
       !read the atom species or index that will be removed
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       !read atom species; can be "all" or "any"
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       IF(LEN_TRIM(temp)>3) GOTO 120
       !
@@ -1565,19 +1561,13 @@ DO WHILE(i<SIZE(cla))
       ENDDO
       !
     ENDIF
-    !if slashes are present (user wants to perform a division), replace them by a colon (:)
-    j = SCAN(options_array(ioptions),'/')
-    DO WHILE(j>0)
-      options_array(ioptions)(j:j) = ':'
-      j = SCAN(options_array(ioptions),'/')
-    ENDDO
   !
   CASE("-separate","-sep")
     ioptions = ioptions+1
     options_array(ioptions) = TRIM(clarg)
     !Read the max. distance
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     READ(temp,*,END=120,ERR=120) tempreal
     !Read the translation distance/vector
@@ -1593,7 +1583,7 @@ DO WHILE(i<SIZE(cla))
 !     IF( j==0 ) THEN
 !       !Succeeded reading 2nd number: there MUST be a third
 !       i=i+1
-!       READ(cla(i),*,END=400,ERR=400) temp
+!       READ(cla(i),'(a)',END=400,ERR=400) temp
 !       READ(temp,*,END=120,ERR=120) tempreal
 !     ELSE
 !       i=i-1
@@ -1604,7 +1594,7 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(clarg)
     !read part to shift ('above' or 'below', or a number)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     temp = TRIM(ADJUSTL(temp))
     IF( temp(1:5)=='above' .OR. temp(1:5)=='below' ) THEN
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
@@ -1641,24 +1631,18 @@ DO WHILE(i<SIZE(cla))
     IF( SCAN(temp,'0123456789')==0 .AND. INDEX(temp,'INF')==0 .AND. &
       & INDEX(temp,'box')==0 .AND. INDEX(temp,'BOX')==0) GOTO 120
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
-    !if slashes are present (user wants to perform a division), replace them by a colon (:)
-    j = SCAN(options_array(ioptions),'/')
-    DO WHILE(j>0)
-      options_array(ioptions)(j:j) = ':'
-      j = SCAN(options_array(ioptions),'/')
-    ENDDO
   !
   CASE("-sort")
     ioptions = ioptions+1
     options_array(ioptions) = TRIM(clarg)
     !Read which property must be sorted
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     IF( temp.NE."random" .AND. temp.NE."reverse" ) THEN
       !Read how to sort it
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
       SELECT CASE(temp)
       CASE("up","UP","down","DOWN","pack","PACK")
@@ -1687,14 +1671,14 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(clarg)
     !Read stress component
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     temp = ADJUSTL(temp)
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     SELECT CASE(StrDnCase(temp))
     CASE('x','xx','y','yy','z','zz','xy','yx','zx','xz','zy','yz','p')
       !Read value of stress
       i=i+1
-      READ(cla(i),*,END=400,ERR=400) temp
+      READ(cla(i),'(a)',END=400,ERR=400) temp
       READ(temp,'(a)',END=120,ERR=120) tempreal
       options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     END SELECT
@@ -1703,11 +1687,11 @@ DO WHILE(i<SIZE(cla))
     ioptions = ioptions+1
     options_array(ioptions) = TRIM(clarg)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     IF(LEN_TRIM(temp)>3) GOTO 120
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     IF(LEN_TRIM(temp)>3) GOTO 120
   !
@@ -1716,7 +1700,7 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(clarg)
     !Read first value to swap
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     temp = TRIM(ADJUSTL(temp))
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     !Read second value to swap
@@ -1730,9 +1714,9 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(clarg)
     !read the axis of torsion (x, y or z) and the angle of rotation
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp2
+    READ(cla(i),'(a)',END=400,ERR=400) temp2
     temp = TRIM(ADJUSTL(temp))
     temp2 = TRIM(ADJUSTL(temp2))
     j=SCAN(temp,"°")
@@ -1767,11 +1751,11 @@ DO WHILE(i<SIZE(cla))
     ioptions = ioptions+1
     options_array(ioptions) = TRIM(clarg)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     temp = cla(i)
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     temp = cla(i)
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
   !
@@ -1784,7 +1768,7 @@ DO WHILE(i<SIZE(cla))
     options_array(ioptions) = TRIM(clarg)
     !Read target temperature for Maxwell-Boltzmann distribution
     i=i+1
-    READ(cla(i),*,END=400,ERR=400) temp
+    READ(cla(i),'(a)',END=400,ERR=400) temp
     READ(temp,'(a)',END=120,ERR=120) tempreal
     options_array(ioptions) = TRIM(options_array(ioptions))//' '//TRIM(temp)
   !

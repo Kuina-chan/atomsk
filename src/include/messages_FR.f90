@@ -10,7 +10,7 @@ MODULE messages_FR
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 24 June 2026                                     *
+!* Last modification: P. Hirel - 10 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -163,12 +163,14 @@ IF(helpsection=="modes" .OR. helpsection=="create") THEN
   WRITE(*,*) "                              fluorite  |       1        |     2"
   WRITE(*,*) "                             rock-salt  |       1        |     2"
   WRITE(*,*) "                            perovskite  |       1        |     3"
+  WRITE(*,*) "                                spinel  |       1        |     3"
   WRITE(*,*) "                                   A15  |       1        |     2"
   WRITE(*,*) "                                   C15  |       1        |     2"
   WRITE(*,*) "                           -------------+----------------+----------"
   WRITE(*,*) "             MAILLES                st  |   2 (a et c)   |   1 ou 2"
   WRITE(*,*) "             TETRAGONALES          bct  |   2 (a et c)   |   1 ou 2"
   WRITE(*,*) "                                   fct  |   2 (a et c)   |   1 ou 2"
+  WRITE(*,*) "                        tet.perovskite  |   2 (a et c)   |     3"
   WRITE(*,*) "                           -------------+----------------+----------"
   WRITE(*,*) "             MAILLES               hcp  |   2 (a et c)   |   1 ou 2"
   WRITE(*,*) "             HEXAGONALES      wurtzite  |   2 (a et c)   |     2"
@@ -2121,6 +2123,7 @@ CASE(2117)
   !reals(2) = number of atoms in the system
   !reals(3) = number of atoms in tetrahedral sites
   !reals(4) = number of atoms in octahedral sites
+  temp = ""
   IF( NINT(reals(3))>0 .OR. NINT(reals(4))>0 ) THEN
     IF( NINT(reals(3))<=0 ) THEN
       temp = " en sites octaédriques"
@@ -2137,10 +2140,10 @@ CASE(2117)
   IF(NINT(reals(1))==0) THEN
     msg = "..> Aucun atome n'a été ajouté"
   ELSEIF(NINT(reals(1))==1) THEN
-    msg = "..> 1 atome a été ajouté "//TRIM(ADJUSTL(temp))
+    msg = "..> 1 atome a été ajouté"//TRIM(temp)
   ELSE
     WRITE(msg,*) NINT(reals(1))
-    msg = "..> "//TRIM(ADJUSTL(msg))//" atomes ont été ajoutés "//TRIM(ADJUSTL(temp))
+    msg = "..> "//TRIM(ADJUSTL(msg))//" atomes ont été ajoutés"//TRIM(temp)
   ENDIF
   WRITE(temp,*) NINT(reals(2))
   msg = TRIM(ADJUSTL(msg))//", "//TRIM(ADJUSTL(temp))//" atomes dans le système."
@@ -3044,6 +3047,8 @@ CASE(4022)
   CALL DISPLAY_MSG(verbosity,msg,logfile)
 CASE(4023)
   IF( strings(1)=="crys" .OR. strings(1)=="elast" ) THEN
+    msg = "element <XX|Z>             Affiche des informations sur l'élément XX ou de numéro atomique Z"
+    CALL DISPLAY_MSG(verbosity,msg,logfile)
     msg = "a0 <value>                 Définit le paramètre de maille a0 (angströms) (aussi b0, c0)"
     CALL DISPLAY_MSG(verbosity,msg,logfile)
     msg = "alpha <angle°>             Définit l'angle de maille alpha (°) (aussi beta, gamma)"
@@ -3140,7 +3145,9 @@ CASE(4028)
   msg = "..> "//TRIM(ADJUSTL(strings(1)))
   CALL DISPLAY_MSG(verbosity,msg,logfile)
 CASE(4029)
-  msg = "..> Le système a bien été créé."
+  !reals(1) = number of atoms in the system
+  WRITE(temp,*) NINT(reals(1))
+  msg = "..> Le système a bien été créé ("//TRIM(ADJUSTL(temp))//" atomes)."
   CALL DISPLAY_MSG(verbosity,msg,logfile)
 CASE(4030)
   !strings(1) = merge direction
@@ -3884,7 +3891,7 @@ CASE(4823)
       &  //TRIM(ADJUSTL(strings(2)))//"' sont mutuellement exclusifs, abandon."
 CASE(4824)
   !strings(1) = name of unknown command
-  msg = TRIM(ADJUSTL(errmsg))//" commande inconnue : "//TRIM(ADJUSTL(strings(1)))
+  msg = "    "//TRIM(ADJUSTL(errmsg))//" commande inconnue : "//TRIM(ADJUSTL(strings(1)))
   CALL DISPLAY_MSG(1,msg,logfile)
   msg = "    Tapez 'help' pour afficher la liste des commandes disponibles."
   CALL DISPLAY_MSG(1,msg,logfile)

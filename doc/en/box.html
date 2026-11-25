@@ -21,16 +21,18 @@
 
 <p>includes all atoms which coordinates are in the intervals X=[-&infin;;+&infin;], Y=[0;150], Z=[50;200].</p>
 
-<p>The keyword <strong>BOX</strong> can be used to define coordinates with respect to the box dimensions. This keyword is replaced by the length of the bounding box of the system, i.e. if the simulation box is defined by three vectors H1, H2 and H3:</p>
+<p>Reduced coordinates, i.e. coordinates proportionnal to the box dimensions, can be specified as a <strong>fraction</strong>. Let us define the cell vectors:</p>
 
 <p>
 <code>
-H1 = [ H(1,1) H(1,2) H(1,3) ]<br/>
-H2 = [ H(2,1) H(2,2) H(2,3) ]<br/>
-H3 = [ H(3,1) H(3,2) H(3,3) ]</code>
+<strong>H<sub>1</sub></strong> = [ H(1,1) H(1,2) H(1,3) ]<br/>
+<strong>H<sub>2</sub></strong> = [ H(2,1) H(2,2) H(2,3) ]<br/>
+<strong>H<sub>3</sub></strong> = [ H(3,1) H(3,2) H(3,3) ]</code>
 </p>
 
-<p>then along the X, Y and Z directions the keyword BOX is replaced by:
+<p>A coordinate specified as "1/2 1/3 3/4" means <strong>H<sub>1</sub></strong>/2 <strong>H<sub>2</sub></strong>/3 3<strong>H<sub>3</sub></strong>/4.</p>
+
+<p>It is also possible to specify reduced coordinates with the keyword <strong>BOX</strong> along the X, Y and Z directions the keyword BOX is replaced by:</p>
 
 <p>
 <code>

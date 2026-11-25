@@ -10,7 +10,7 @@ MODULE mode_interactive
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 17 Sept. 2026                                     *
+!* Last modification: P. Hirel - 10 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -351,70 +351,6 @@ DO
       CASE("ls","dir")
         CALL SYSTEM(system_ls)
         !
-      CASE("print")
-        !Print information about the system on the screen
-        temp = TRIM(ADJUSTL( instruction(6:) ))
-        IF( temp=="atoms" ) THEN
-          IF( ALLOCATED(P) .AND. SIZE(P,1)>0 ) THEN
-            WRITE(temp,*) SIZE(P,1)
-            WRITE(*,*) "  "//TRIM(ADJUSTL(temp))//" atoms"
-            DO i=1,MIN(20,SIZE(P,1))
-              CALL ATOMSPECIES(P(i,4),species)
-              WRITE(*,'(2X,a2,2X,3(f12.6,2X))') species, P(i,1), P(i,2), P(i,3)
-            ENDDO
-            IF( SIZE(P,1)>20 ) THEN
-              WRITE(*,*) "  (...discontinued...)"
-            ENDIF
-          ENDIF
-          !
-        ELSEIF( temp=="box" ) THEN
-          DO i=1,3
-            WRITE(*,'(a4,i1,a3,3f12.6)') "   H", i, " = ", H(i,1), H(i,2), H(i,3)
-          ENDDO
-          !
-        ELSEIF( temp=="Cij" ) THEN
-          IF( ANY(C_tensor(:,:).NE.0.d0) ) THEN
-            !Print elastic tensor
-            WRITE(*,*) "  Current elastic tensor Cij (GPa):"
-            CALL DISPLAY_MATRIX("Cij (GPa)",C_tensor)
-          ELSE
-            WRITE(*,*) "Cij not set"
-          ENDIF
-          !
-        ELSEIF( temp=="Sij" ) THEN
-          IF( ANY(S_tensor(:,:).NE.0.d0) ) THEN
-            !Print elastic tensor
-            WRITE(*,*) "  Current compliance tensor Sij (GPa):"
-            CALL DISPLAY_MATRIX("Sij (GPa^-1)",S_tensor)
-          ELSE
-            WRITE(*,*) "Sij not set"
-          ENDIF
-          !
-        ELSE
-          !Default: print box vectors and atom positions
-          IF( ANY(DABS(H(:,:))>1.d-12) ) THEN
-            CALL DISPLAY_MATRIX("cell",H)
-          ENDIF
-          IF( ALLOCATED(P) .AND. SIZE(P,1)>0 ) THEN
-            WRITE(temp,*) SIZE(P,1)
-            WRITE(*,*) "  "//TRIM(ADJUSTL(temp))//" atoms"
-            DO i=1,MIN(20,SIZE(P,1))
-              CALL ATOMSPECIES(P(i,4),species)
-              WRITE(*,'(2X,a2,2X,3(f12.6,2X))') species, P(i,1), P(i,2), P(i,3)
-            ENDDO
-            IF( SIZE(P,1)>20 ) THEN
-              WRITE(*,*) "  (...discontinued...)"
-            ENDIF
-          ENDIF
-          IF( ANY(C_tensor(:,:)>1.d-12) ) THEN
-            !Print elastic tensor (if defined)
-            WRITE(*,*) "  Current elastic tensor Cij (GPa):"
-            DO i=1,9
-              WRITE(*,'(2X,9(f12.6,2X))') (C_tensor(i,j) , j=1,9)
-            ENDDO
-          ENDIF
-        ENDIF
-        !
       CASE("pwd","PWD")
         CALL SYSTEM("pwd")
         !
@@ -499,55 +435,22 @@ DO
           CALL ATOMSK_MSG(4023,(/''/),(/0.d0/))
         ENDIF
         !
-      CASE("memory","mem")
-        !Display some info about array sizes
-        i=0
-        IF( ANY(H(:,:)>1.d-12) ) THEN
-          i=i+1
-          CALL DISPLAY_MATRIX("cell",H)
+      CASE("variable","var")
+        !User wants to define a new variable
+        IF( .NOT.ALLOCATED(variables) ) THEN
+          k=1
+          IF(ALLOCATED(var_names)) DEALLOCATE(var_names)
+          ALLOCATE(variables(1))
+          variables(1) = 0.d0
+          ALLOCATE(var_names(1))
+          var_names(1) = " "
+        ELSE
+          k=SIZE(variables)+1
+          CALL RESIZE_CHAR1(var_names,k)
+          CALL RESIZE_DBLEARRAY1(variables,k)
         ENDIF
-        IF( ALLOCATED(P) ) THEN
-          i=i+1
-          IF( ALLOCATED(S) ) THEN
-            WRITE(*,'(a18, i9)') "  N ionic cores:  ", SIZE(P,1)
-            WRITE(*,'(a18, i9)') "  N ionic shells: ", SIZE(S,1)
-            j = SIZE(P,1)+SIZE(S,1)
-          ELSE
-            j = SIZE(P,1)
-          ENDIF
-          WRITE(*,'(a18, i9)') "  N particles:    ", j
-          !Write atoms species and their number
-          CALL FIND_NSP(P(:,4),aentries)
-          IF( SIZE(aentries,1)>0 ) THEN
-            msg = "  Species:"
-            DO j=1,SIZE(aentries,1)
-              CALL ATOMSPECIES(aentries(j,1) , species)
-              msg = TRIM(msg)//" "//species
-              WRITE(test,*) NINT(aentries(j,2))
-              msg = TRIM(msg)//"("//TRIM(ADJUSTL(test))//")"
-            ENDDO
-            WRITE(*,*) TRIM(msg)
-          ENDIF
-        ENDIF
-        IF( ALLOCATED(AUX) ) THEN
-          i=i+1
-          msg = AUXNAMES(1)
-          DO j=2,SIZE(AUXNAMES)
-            msg = TRIM(ADJUSTL(msg))//" "//TRIM(ADJUSTL(AUXNAMES(j)))
-          ENDDO
-          WRITE(*,*) " Auxiliary properties: "//TRIM(ADJUSTL(msg))
-        ENDIF
-        IF( ALLOCATED(SELECT) ) THEN
-          i=i+1
-          j=0
-          DO k=1,SIZE(SELECT)
-            IF( SELECT(k) ) j=j+1
-          ENDDO
-          WRITE(*,*) " Atoms selected: ", j
-        ENDIF
-        IF(i==0) THEN
-          WRITE(*,*) " Nothing in memory"
-        ENDIF
+        i = SCAN(instruction," ")
+        READ(instruction(i+1:),*,END=400,ERR=400) var_names(k), variables(k)
         !
       !Commands to read and write files
       CASE("read","load")
@@ -575,6 +478,47 @@ DO
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       !!!         COMMANDS FOR MANIPULATING BOX/ATOMS
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        !
+      CASE("element","elem")
+        !Print information about a chemical element
+        k = SCAN(instruction,' ')
+        command = TRIM(ADJUSTL(instruction(k+1:)))
+        IF( LEN_TRIM(command)==0 ) THEN
+          WRITE(*,*) "    X!X ERROR: Missing chemical symbol or atomic number."
+        ELSEIF( LEN_TRIM(command)>0 .AND. LEN_TRIM(command)<=2 .AND. SCAN(command,"0123456789")==0  ) THEN
+          !1 or 2 characters: try to interpret it as chemical species
+          species = TRIM(command)
+          CALL ATOMNUMBER(species,snumber)
+          CALL ATOMMASS(species,smass)
+        ELSEIF( SCAN(command,"0123456789")>0 ) THEN
+          !Appears to be a number: interpret it as an atomic number
+          READ(command,*) snumber
+          snumber = NINT(snumber)
+          CALL ATOMSPECIES(snumber,species)
+          CALL ATOMMASS(species,smass)
+        ELSE
+          !Wrong number of characters: can not be an atomic species
+        ENDIF
+        IF( NINT(snumber)>0 .AND. NINT(smass)>0 ) THEN
+          !Successfully identified an element: print info on screen
+          WRITE(string1,*) NINT(snumber)
+          WRITE(string2,'(f12.3)') smass
+          WRITE(*,*) "    "//species(1:2)//"    Z = "//TRIM(ADJUSTL(string1))// &
+                     "    Mass = "//TRIM(ADJUSTL(string2))//" a.u."
+        ELSE
+          WRITE(*,*) "    X!X ERROR: unrecognized element."
+        ENDIF
+        !
+      CASE("elements")
+        !Print information about all elements
+        DO i=1,118
+          CALL ATOMSPECIES(DBLE(i),species)
+          CALL ATOMMASS(species,smass)
+          WRITE(string1,*) i
+          WRITE(string2,'(f12.3)') smass
+          WRITE(*,*) "    "//species(1:2)//"    Z = "//TRIM(ADJUSTL(string1))// &
+                     "    Mass = "//TRIM(ADJUSTL(string2))//" a.u."
+        ENDDO
         !
       CASE("a0")
         command = TRIM(ADJUSTL(instruction(3:)))
@@ -892,6 +836,120 @@ DO
           CALL ATOMNUMBER(species,P(k,4))
           WRITE(*,'(2X,i3,2X,3(f12.6,2X))') NINT(P(k,4)), P(k,1), P(k,2), P(k,3)
         ENDIF !end if LEN_TRIM(command)
+        !
+      CASE("print")
+        !Print information about the system on the screen
+        temp = TRIM(ADJUSTL( instruction(6:) ))
+        IF( temp=="atoms" ) THEN
+          IF( ALLOCATED(P) .AND. SIZE(P,1)>0 ) THEN
+            WRITE(temp,*) SIZE(P,1)
+            WRITE(*,*) "  "//TRIM(ADJUSTL(temp))//" atoms"
+            DO i=1,MIN(20,SIZE(P,1))
+              CALL ATOMSPECIES(P(i,4),species)
+              WRITE(*,'(2X,a2,2X,3(f12.6,2X))') species, P(i,1), P(i,2), P(i,3)
+            ENDDO
+            IF( SIZE(P,1)>20 ) THEN
+              WRITE(*,*) "  (...discontinued...)"
+            ENDIF
+          ENDIF
+          !
+        ELSEIF( temp=="box" ) THEN
+          DO i=1,3
+            WRITE(*,'(a4,i1,a3,3f12.6)') "   H", i, " = ", H(i,1), H(i,2), H(i,3)
+          ENDDO
+          !
+        ELSEIF( temp=="Cij" ) THEN
+          IF( ANY(C_tensor(:,:).NE.0.d0) ) THEN
+            !Print elastic tensor
+            WRITE(*,*) "  Current elastic tensor Cij (GPa):"
+            CALL DISPLAY_MATRIX("Cij (GPa)",C_tensor)
+          ELSE
+            WRITE(*,*) "Cij not set"
+          ENDIF
+          !
+        ELSEIF( temp=="Sij" ) THEN
+          IF( ANY(S_tensor(:,:).NE.0.d0) ) THEN
+            !Print elastic tensor
+            WRITE(*,*) "  Current compliance tensor Sij (GPa):"
+            CALL DISPLAY_MATRIX("Sij (GPa^-1)",S_tensor)
+          ELSE
+            WRITE(*,*) "Sij not set"
+          ENDIF
+          !
+        ELSE
+          !Default: print box vectors and atom positions
+          IF( ANY(DABS(H(:,:))>1.d-12) ) THEN
+            CALL DISPLAY_MATRIX("cell",H)
+          ENDIF
+          IF( ALLOCATED(P) .AND. SIZE(P,1)>0 ) THEN
+            WRITE(temp,*) SIZE(P,1)
+            WRITE(*,*) "  "//TRIM(ADJUSTL(temp))//" atoms"
+            DO i=1,MIN(20,SIZE(P,1))
+              CALL ATOMSPECIES(P(i,4),species)
+              WRITE(*,'(2X,a2,2X,3(f12.6,2X))') species, P(i,1), P(i,2), P(i,3)
+            ENDDO
+            IF( SIZE(P,1)>20 ) THEN
+              WRITE(*,*) "  (...discontinued...)"
+            ENDIF
+          ENDIF
+          IF( ANY(C_tensor(:,:)>1.d-12) ) THEN
+            !Print elastic tensor (if defined)
+            WRITE(*,*) "  Current elastic tensor Cij (GPa):"
+            DO i=1,9
+              WRITE(*,'(2X,9(f12.6,2X))') (C_tensor(i,j) , j=1,9)
+            ENDDO
+          ENDIF
+        ENDIF
+        !
+      CASE("memory","mem")
+        !Display some info about array sizes
+        i=0
+        IF( ANY(H(:,:)>1.d-12) ) THEN
+          i=i+1
+          CALL DISPLAY_MATRIX("cell",H)
+        ENDIF
+        IF( ALLOCATED(P) ) THEN
+          i=i+1
+          IF( ALLOCATED(S) ) THEN
+            WRITE(*,'(a18, i9)') "  N ionic cores:  ", SIZE(P,1)
+            WRITE(*,'(a18, i9)') "  N ionic shells: ", SIZE(S,1)
+            j = SIZE(P,1)+SIZE(S,1)
+          ELSE
+            j = SIZE(P,1)
+          ENDIF
+          WRITE(*,'(a18, i9)') "  N particles:    ", j
+          !Write atoms species and their number
+          CALL FIND_NSP(P(:,4),aentries)
+          IF( SIZE(aentries,1)>0 ) THEN
+            msg = "  Species:"
+            DO j=1,SIZE(aentries,1)
+              CALL ATOMSPECIES(aentries(j,1) , species)
+              msg = TRIM(msg)//" "//species
+              WRITE(test,*) NINT(aentries(j,2))
+              msg = TRIM(msg)//"("//TRIM(ADJUSTL(test))//")"
+            ENDDO
+            WRITE(*,*) TRIM(msg)
+          ENDIF
+        ENDIF
+        IF( ALLOCATED(AUX) ) THEN
+          i=i+1
+          msg = AUXNAMES(1)
+          DO j=2,SIZE(AUXNAMES)
+            msg = TRIM(ADJUSTL(msg))//" "//TRIM(ADJUSTL(AUXNAMES(j)))
+          ENDDO
+          WRITE(*,*) " Auxiliary properties: "//TRIM(ADJUSTL(msg))
+        ENDIF
+        IF( ALLOCATED(SELECT) ) THEN
+          i=i+1
+          j=0
+          DO k=1,SIZE(SELECT)
+            IF( SELECT(k) ) j=j+1
+          ENDDO
+          WRITE(*,*) " Atoms selected: ", j
+        ENDIF
+        IF(i==0) THEN
+          WRITE(*,*) " Nothing in memory"
+        ENDIF
 
       !
       !
@@ -1445,23 +1503,6 @@ DO
             WRITE(*,*) "  Could not compute elastic moduli"
           ENDIF
         ENDIF
-        !
-      CASE("variable","var")
-        !User wants to define a new variable
-        IF( .NOT.ALLOCATED(variables) ) THEN
-          k=1
-          IF(ALLOCATED(var_names)) DEALLOCATE(var_names)
-          ALLOCATE(variables(1))
-          variables(1) = 0.d0
-          ALLOCATE(var_names(1))
-          var_names(1) = " "
-        ELSE
-          k=SIZE(variables)+1
-          CALL RESIZE_CHAR1(var_names,k)
-          CALL RESIZE_DBLEARRAY1(variables,k)
-        ENDIF
-        i = SCAN(instruction," ")
-        READ(instruction(i+1:),*,END=400,ERR=400) var_names(k), variables(k)
 
       !
       !

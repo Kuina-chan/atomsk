@@ -9,7 +9,7 @@ MODULE strings
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 24 Sept. 2025                                    *
+!* Last modification: P. Hirel - 12 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -33,6 +33,7 @@ MODULE strings
 !* STR_REAL            determines if a string contains a number                   *
 !* STR_CLEAN           removes given characters and blank spaces in a string      *
 !* STR_CHAR2SPACE      replaces a character by blank space in a string            *
+!* STRCUT              cuts a string into sub-strings                             *
 !* STR2BOOL            transforms a string into a boolean value                   *
 !* BOX2DBLE            transforms a string into a real number                     *
 !**********************************************************************************
@@ -315,6 +316,65 @@ END SUBROUTINE STR_CHAR2SPACE
 !
 !
 !********************************************************
+! STRCUT
+! Cuts a string into sub-strings. The string is expected
+! to contain fields separated by the separator "sep"
+! (e.g. a blank space or a comma).
+!********************************************************
+SUBROUTINE STRCUT(string,sep,substr)
+!
+IMPLICIT NONE
+CHARACTER(LEN=1),INTENT(IN):: sep
+CHARACTER(LEN=*),INTENT(IN):: string
+CHARACTER(LEN=4024):: tempstr
+CHARACTER(LEN=32),DIMENSION(:),ALLOCATABLE,INTENT(OUT)::  substr
+INTEGER:: i, NF
+!
+IF(ALLOCATED(substr)) DEALLOCATE(substr)
+!
+IF( LEN_TRIM(string)<=0 ) THEN
+  !Empty string: return an array of size 1 with an empty string
+  ALLOCATE(substr(1))
+  substr(1) = ""
+  !
+ELSE
+  !Determine how many fields the string contains
+  tempstr = TRIM(ADJUSTL(string))
+  NF=0
+  DO WHILE(LEN_TRIM(tempstr)>0)
+    i = SCAN(tempstr,sep)
+    IF(i>0) THEN
+      tempstr = TRIM(ADJUSTL(tempstr(i+1:)))
+      NF=NF+1
+    ELSE
+      EXIT
+    ENDIF
+  ENDDO
+  !
+  IF(NF==0) NF=1
+  ALLOCATE(substr(NF))
+  substr(:) = ""
+  !
+  IF(NF==1) THEN
+    substr(1) = TRIM(ADJUSTL(string))
+  ELSE
+    tempstr = TRIM(ADJUSTL(string))
+    NF=1
+    DO WHILE(LEN_TRIM(tempstr)>0)
+      i = SCAN(tempstr,sep)
+      substr(NF) = TRIM(ADJUSTL(tempstr(1:i-1)))
+      tempstr = TRIM(ADJUSTL(tempstr(i+1:)))
+      NF=NF+1
+    ENDDO
+  ENDIF
+  !
+ENDIF
+!
+END SUBROUTINE STRCUT
+!
+!
+!
+!********************************************************
 ! STR2BOOL
 ! This subroutine transforms a string into a
 ! boolean value
@@ -343,7 +403,7 @@ END SUBROUTINE STR2BOOL
 ! BOX2DBLE
 ! This subroutine transforms a string containing one
 ! of the keywords "BOX" (or "box"), "INF" or "-INF",
-! or "%", into a real number.
+! or "%", or a fraction, into a real number.
 ! The box vector vbox must be provided.
 ! NOTE: this routine will work only for simple
 !      expressions involving only one occurence of
@@ -473,6 +533,13 @@ ELSEIF( INDEX(text,'%')>0 ) THEN
   text(posbox:posbox) = " "
   READ( text,*,END=800,ERR=800) areal
   number = SUM(vbox) * areal/100.d0
+  !
+ELSEIF( INDEX(text,'/')>0 ) THEN
+  !This is a fraction
+  posop = INDEX(text,'/')
+  READ(text(1:posop-1),*,END=800,ERR=800) areal
+  READ(text(posop+1:),*,END=800,ERR=800) numbersign
+  number = SUM(vbox) * areal / numbersign
   !
 ELSE
   !easy case: there should just be a number

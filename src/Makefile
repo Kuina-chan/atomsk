@@ -87,7 +87,7 @@ endif
   
 # DEBUGGING FLAGS
 ifeq ($(debug),yes)
-  OPTIONS+=-fbacktrace -g -Wall -Og #-fbounds-check
+  OPTIONS+=-fbacktrace -g #-fbounds-check # -Wall -Og
 endif
 
 modes compute aux caux input options output cbindings 110n general objdir : FFLAGS=-O2 $(OPENMP) -fno-backslash -I..$(SEP)$(OBJ) -J..$(SEP)$(OBJ) $(OPTIONS)

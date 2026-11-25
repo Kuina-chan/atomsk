@@ -11,7 +11,7 @@ MODULE mode_create
 !*     Université de Lille, Sciences et Technologies                              *
 !*     UMR CNRS 8207, UMET - C6, F-59655 Villeneuve D'Ascq, France                *
 !*     pierre.hirel@univ-lille.fr                                                 *
-!* Last modification: P. Hirel - 13 June 2024                                     *
+!* Last modification: P. Hirel - 19 Nov. 2026                                     *
 !**********************************************************************************
 !* This program is free software: you can redistribute it and/or modify           *
 !* it under the terms of the GNU General Public License as published by           *
@@ -53,13 +53,14 @@ CHARACTER(LEN=32),DIMENSION(3):: create_Miller    !Miller vectors along X, Y, Z
 REAL(dp),DIMENSION(3),INTENT(IN):: create_a0      !lattice constants
 !
 CHARACTER(LEN=5),DIMENSION(:),ALLOCATABLE:: outfileformats !list of formats to output
+CHARACTER(LEN=16):: lattype       !type of lattice (cubic, tetragonal, hexagonal...)
 CHARACTER(LEN=32):: NT_type       !type of nanotube (zig-zag or armchair or chiral)
 CHARACTER(LEN=128):: msg, temp
 CHARACTER(LEN=4096):: outputfile
 CHARACTER(LEN=128),DIMENSION(:),ALLOCATABLE:: AUXNAMES !names of auxiliary properties
 CHARACTER(LEN=128),DIMENSION(:),ALLOCATABLE:: comment
 CHARACTER(LEN=128),DIMENSION(:),ALLOCATABLE:: options_array !options and their parameters
-LOGICAL:: cubic, tetragonal, hexagonal, oriented   !is the system cubic? is it hcp? should it be oriented?
+LOGICAL:: oriented   !should the lattice be oriented?
 LOGICAL:: renameof  !rename output file?
 LOGICAL:: new
 LOGICAL,INTENT(IN):: wof !write output file?
@@ -87,9 +88,7 @@ REAL(dp),DIMENSION(:,:),ALLOCATABLE:: Q     !positions of atoms (temporary)
 REAL(dp),DIMENSION(:,:),ALLOCATABLE:: AUX !auxiliary properties
 !
 !Initialize variables
- cubic = .FALSE.
- tetragonal = .FALSE.
- hexagonal = .FALSE.
+lattype=""
  oriented = .FALSE.
  renameof = .FALSE.
 IF(ALLOCATED(SELECT)) DEALLOCATE(SELECT)
@@ -160,7 +159,7 @@ SELECT CASE(StrDnCase(create_struc))
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  CUBIC LATTICES  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 CASE("sc","ah","a_h")
-  cubic = .TRUE.
+  lattype = "cubic"
   IF(nspecies.NE.1) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0 /))
     GOTO 810
@@ -180,7 +179,7 @@ CASE("sc","ah","a_h")
 !
 !
 CASE("bcc","cscl","a2")
-  cubic = .TRUE.
+  lattype = "cubic"
   IF(nspecies.NE.1 .AND. nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -215,7 +214,7 @@ CASE("bcc","cscl","a2")
 !
 !
 CASE("fcc","a1")
-  cubic = .TRUE.
+  lattype = "cubic"
   IF(nspecies.NE.1 .AND. nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -254,7 +253,7 @@ CASE("fcc","a1")
 !
 !
 CASE("l12","l1_2")
-  cubic = .TRUE.
+  lattype = "cubic"
   IF(nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -289,7 +288,7 @@ CASE("l12","l1_2")
 !
 !
 CASE("dia","diamond","zincblende","zb")
-  cubic = .TRUE.
+  lattype = "cubic"
   IF(nspecies.NE.1 .AND. nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -336,7 +335,7 @@ CASE("dia","diamond","zincblende","zb")
 !
 !
 CASE("rocksalt","rs","b1")
-  cubic = .TRUE.
+  lattype = "cubic"
   IF(nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 2.d0 /))
     GOTO 810
@@ -371,7 +370,7 @@ CASE("rocksalt","rs","b1")
 !
 !
 CASE("fluorite","fluorine")
-  cubic = .TRUE.
+  lattype = "cubic"
   IF(nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -417,7 +416,7 @@ CASE("fluorite","fluorine")
 !
 !
 CASE("a15","cr3si")
-  cubic = .TRUE.
+  lattype = "cubic"
   IF(nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -459,7 +458,7 @@ CASE("a15","cr3si")
 !
 !
 CASE("c15")
-  cubic = .TRUE.
+  lattype = "cubic"
   IF(nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -518,7 +517,7 @@ CASE("c15")
 !
 !
 CASE("per","perovskite")
-  cubic = .TRUE.
+  lattype = "cubic"
   IF(nspecies.NE.3) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 3.d0 /))
     GOTO 810
@@ -526,10 +525,10 @@ CASE("per","perovskite")
   ALLOCATE(P(5,4))
   !Set up atom positions (reduced coordinates)
   P(:,:) = 0.d0
-  P(1,1:3) = (/ 0.5d0 , 0.5d0 , 0.5d0 /)
-  P(3,1:3) = (/ 0.5d0 , 0.0d0 , 0.0d0 /)
-  P(4,1:3) = (/ 0.0d0 , 0.5d0 , 0.0d0 /)
-  P(5,1:3) = (/ 0.0d0 , 0.0d0 , 0.5d0 /)
+  P(2,1:3) = (/ 0.5d0 , 0.5d0 , 0.5d0 /)
+  P(3,1:3) = (/ 0.5d0 , 0.5d0 , 0.0d0 /)
+  P(4,1:3) = (/ 0.5d0 , 0.0d0 , 0.5d0 /)
+  P(5,1:3) = (/ 0.0d0 , 0.5d0 , 0.5d0 /)
   !Convert to Cartesian coordinates
   P(:,1) = create_a0(1)*P(:,1)
   P(:,2) = create_a0(2)*P(:,2)
@@ -554,8 +553,101 @@ CASE("per","perovskite")
   ENDIF
 !
 !
+CASE("spinel")
+  lattype = "cubic"
+  IF(nspecies.NE.3) THEN
+    CALL ATOMSK_MSG(4804,(/create_struc/),(/ 3.d0 /))
+    GOTO 810
+  ENDIF
+  ALLOCATE(P(56,4))
+  !Set up atom positions (reduced coordinates), e.g. Al2MgO4
+  P(:,:) = 0.d0
+  P(2,1:3)  = (/ 0.0000 , 0.2500 , 0.2500 /)   !Al sites
+  P(3,1:3)  = (/ 0.7500 , 0.2500 , 0.5000 /)
+  P(4,1:3)  = (/ 0.7500 , 0.0000 , 0.7500 /)
+  P(5,1:3)  = (/ 0.2500 , 0.0000 , 0.2500 /)
+  P(6,1:3)  = (/ 0.5000 , 0.7500 , 0.2500 /)
+  P(7,1:3)  = (/ 0.7500 , 0.7500 , 0.0000 /)
+  P(8,1:3)  = (/ 0.0000 , 0.5000 , 0.5000 /)
+  P(9,1:3)  = (/ 0.2500 , 0.7500 , 0.5000 /)
+  P(10,1:3) = (/ 0.7500 , 0.5000 , 0.2500 /)
+  P(11,1:3) = (/ 0.5000 , 0.5000 , 0.0000 /)
+  P(12,1:3) = (/ 0.2500 , 0.2500 , 0.0000 /)
+  P(13,1:3) = (/ 0.5000 , 0.2500 , 0.7500 /)
+  P(14,1:3) = (/ 0.2500 , 0.5000 , 0.7500 /)
+  P(15,1:3) = (/ 0.5000 , 0.0000 , 0.5000 /)
+  P(16,1:3) = (/ 0.0000 , 0.7500 , 0.7500 /)
+  !
+  P(17,1:3) = (/ 0.3750 , 0.37500 , 0.3750 /)   !Mg sites
+  P(18,1:3) = (/ 0.6250 , 0.62500 , 0.6250 /)
+  P(19,1:3) = (/ 0.3750 , 0.87500 , 0.8750 /)
+  P(20,1:3) = (/ 0.1250 , 0.62500 , 0.1250 /)
+  P(21,1:3) = (/ 0.8750 , 0.37500 , 0.8750 /)
+  P(22,1:3) = (/ 0.1250 , 0.12500 , 0.6250 /)
+  P(23,1:3) = (/ 0.6250 , 0.12500 , 0.1250 /)
+  P(24,1:3) = (/ 0.8750 , 0.87500 , 0.3750 /)
+  !
+  P(25,1:3) = (/ 0.2500 , 0.25000 , 0.2500 /)   !O sites
+  P(26,1:3) = (/ 0.7500 , 0.50000 , 0.5000 /)
+  P(27,1:3) = (/ 0.5000 , 0.00000 , 0.7500 /)
+  P(28,1:3) = (/ 0.0000 , 0.75000 , 0.0000 /)
+  P(29,1:3) = (/ 0.2500 , 0.00000 , 0.0000 /)
+  P(30,1:3) = (/ 0.7500 , 0.75000 , 0.7500 /)
+  P(31,1:3) = (/ 0.5000 , 0.25000 , 0.5000 /)
+  P(32,1:3) = (/ 0.0000 , 0.50000 , 0.2500 /)
+  P(33,1:3) = (/ 0.5000 , 0.75000 , 0.5000 /)
+  P(34,1:3) = (/ 0.7500 , 0.50000 , 0.0000 /)
+  P(35,1:3) = (/ 0.0000 , 0.00000 , 0.7500 /)
+  P(36,1:3) = (/ 0.0000 , 0.25000 , 0.0000 /)
+  P(37,1:3) = (/ 0.5000 , 0.50000 , 0.2500 /)
+  P(38,1:3) = (/ 0.2500 , 0.00000 , 0.5000 /)
+  P(39,1:3) = (/ 0.2500 , 0.75000 , 0.7500 /)
+  P(40,1:3) = (/ 0.5000 , 0.00000 , 0.2500 /)
+  P(41,1:3) = (/ 0.7500 , 0.25000 , 0.2500 /)
+  P(42,1:3) = (/ 0.0000 , 0.50000 , 0.7500 /)
+  P(43,1:3) = (/ 0.5000 , 0.75000 , 0.0000 /)
+  P(44,1:3) = (/ 0.2500 , 0.25000 , 0.7500 /)
+  P(45,1:3) = (/ 0.0000 , 0.00000 , 0.2500 /)
+  P(46,1:3) = (/ 0.0000 , 0.25000 , 0.5000 /)
+  P(47,1:3) = (/ 0.5000 , 0.50000 , 0.7500 /)
+  P(48,1:3) = (/ 0.7500 , 0.75000 , 0.2500 /)
+  P(49,1:3) = (/ 0.2500 , 0.50000 , 0.0000 /)
+  P(50,1:3) = (/ 0.0000 , 0.75000 , 0.5000 /)
+  P(51,1:3) = (/ 0.7500 , 0.00000 , 0.5000 /)
+  P(52,1:3) = (/ 0.5000 , 0.25000 , 0.0000 /)
+  P(53,1:3) = (/ 0.2500 , 0.75000 , 0.2500 /)
+  P(54,1:3) = (/ 0.7500 , 0.25000 , 0.7500 /)
+  P(55,1:3) = (/ 0.2500 , 0.50000 , 0.5000 /)
+  P(56,1:3) = (/ 0.7500 , 0.00000 , 0.0000 /)
+  !Convert to Cartesian coordinates
+  P(:,1) = create_a0(1)*P(:,1)
+  P(:,2) = create_a0(2)*P(:,2)
+  P(:,3) = create_a0(3)*P(:,3)
+  !Set up atom species
+  CALL ATOMNUMBER(create_species(1),P(1,4))
+  P(2:16,4) = P(1,4)
+  CALL ATOMNUMBER(create_species(2),P(17,4))
+  P(18:24,4) = P(17,4)
+  CALL ATOMNUMBER(create_species(3),P(25,4))
+  P(26:56,4) = P(25,4)
+  !Set up the unit cell
+  H(1,1) = create_a0(1)
+  H(2,2) = create_a0(2)
+  H(3,3) = create_a0(3)
+  Huc(:,:) = H(:,:)
+  !Set up the messages
+  temp = TRIM(create_species(1))//'2'//TRIM(create_species(2))//TRIM(create_species(3))//'3'
+  WRITE(comment(1),*) 'Cubic spinel '//TRIM(temp)
+  !If necessary, set up the name of the output file
+  IF( renameof ) THEN
+    outputfile = TRIM(temp)
+  ENDIF
+!
+!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  TETRAGONAL LATTICES  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!NOTE: tetragonal axis is along Z
 CASE("st")
+  lattype = "tetragonal"
   IF(nspecies.NE.1) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0 /))
     GOTO 810
@@ -575,6 +667,7 @@ CASE("st")
 !
 !
 CASE("bct")
+  lattype = "tetragonal"
   IF(nspecies.NE.1 .AND. nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -609,6 +702,7 @@ CASE("bct")
 !
 !
 CASE("fct","l10","l1_0")
+  lattype = "tetragonal"
   IF(nspecies.NE.1 .AND. nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -646,9 +740,46 @@ CASE("fct","l10","l1_0")
   ENDIF
 !
 !
+CASE("tper","tetragonal-perovskite")
+  lattype = "tetragonal"
+  IF(nspecies.NE.3) THEN
+    CALL ATOMSK_MSG(4804,(/create_struc/),(/ 3.d0 /))
+    GOTO 810
+  ENDIF
+  ALLOCATE(P(5,4))
+  !Set up atom positions (reduced coordinates)
+  P(:,:) = 0.d0
+  P(2,1:3) = (/ 0.5d0 , 0.5d0 , 0.51d0 /)
+  P(3,1:3) = (/ 0.5d0 , 0.5d0 ,-0.05d0 /)
+  P(4,1:3) = (/ 0.5d0 , 0.0d0 , 0.45d0 /)
+  P(5,1:3) = (/ 0.0d0 , 0.5d0 , 0.45d0 /)
+  !Convert to Cartesian coordinates
+  P(:,1) = create_a0(1)*P(:,1)
+  P(:,2) = create_a0(2)*P(:,2)
+  P(:,3) = create_a0(3)*P(:,3)
+  !Set up atom species
+  CALL ATOMNUMBER(create_species(1),P(1,4))
+  CALL ATOMNUMBER(create_species(2),P(2,4))
+  CALL ATOMNUMBER(create_species(3),P(3,4))
+  P(4,4) = P(3,4)
+  P(5,4) = P(3,4)
+  !Set up the unit cell
+  H(1,1) = create_a0(1)
+  H(2,2) = create_a0(2)
+  H(3,3) = create_a0(3)
+  Huc(:,:) = H(:,:)
+  !Set up the messages
+  temp = TRIM(create_species(1))//TRIM(create_species(2))//TRIM(create_species(3))//'3'
+  WRITE(comment(1),*) 'Tetragonal perovskite '//TRIM(temp)
+  !If necessary, set up the name of the output file
+  IF( renameof ) THEN
+    outputfile = TRIM(temp)
+  ENDIF
+!
+!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!  HEXAGONAL LATTICES  !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 CASE("hcp","a3")
-  hexagonal = .TRUE.
+  lattype = "hexagonal"
   IF(nspecies.NE.1 .AND. nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -685,7 +816,7 @@ CASE("hcp","a3")
   ENDIF
 !
 CASE("wurtzite","wz","b4")
-  hexagonal = .TRUE.
+  lattype = "hexagonal"
   IF(nspecies.NE.1 .AND. nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -729,7 +860,7 @@ CASE("wurtzite","wz","b4")
 !
 !
 CASE("graphite","a9")
-  hexagonal = .TRUE.
+  lattype = "hexagonal"
   IF(nspecies.NE.1 .AND. nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -765,7 +896,7 @@ CASE("graphite","a9")
 !
 !
 CASE("bn","b12")
-  hexagonal = .TRUE.
+  lattype = "hexagonal"
   IF(nspecies.NE.1 .AND. nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -801,7 +932,7 @@ CASE("bn","b12")
 !
 !
 CASE("c14")
-  hexagonal = .TRUE.
+  lattype = "hexagonal"
   IF(nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -850,7 +981,7 @@ CASE("c14")
 !
 !
 CASE("c36")
-  hexagonal = .TRUE.
+  lattype = "hexagonal"
   IF(nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -912,7 +1043,7 @@ CASE("c36")
 !
 !
 CASE("limo2")
-  hexagonal = .TRUE.
+  lattype = "hexagonal"
   IF(nspecies.NE.3) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 3.d0 /))
     GOTO 810
@@ -991,6 +1122,7 @@ CASE("limo2")
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!  OTHER STRUCTURES  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 CASE("nanotube","NT")
+  lattype = "nanotube"
   IF(nspecies.NE.1 .AND. nspecies.NE.2) THEN
     CALL ATOMSK_MSG(4804,(/create_struc/),(/ 1.d0,2.d0 /))
     GOTO 810
@@ -1155,18 +1287,12 @@ END SELECT
 !
 300 CONTINUE
 IF( verbosity==4 ) THEN
-  IF( cubic ) THEN
-    WRITE(msg,*) "System is cubic:", cubic
-    CALL ATOMSK_MSG(999,(/msg/),(/0.d0/))
-  ENDIF
-  IF( hexagonal ) THEN
-    WRITE(msg,*) "System is hexagonal:", hexagonal
-    CALL ATOMSK_MSG(999,(/msg/),(/0.d0/))
-  ENDIF
+  WRITE(msg,*) "Lattice type:", TRIM(lattype)
+  CALL ATOMSK_MSG(999,(/msg/),(/0.d0/))
 ENDIF
 !
 !Orient the system according to Miller indices - CUBIC SYSTEMS ONLY!
-IF( cubic ) THEN
+IF( lattype=="cubic" ) THEN
   !Convert strings in create_Miller into
   IF( .NOT.ANY( LEN_TRIM(create_Miller)<=0 ) ) THEN
     !
@@ -1504,42 +1630,56 @@ IF( cubic ) THEN
   ENDIF  !end if oriented
     !
     !
-ELSEIF( hexagonal ) THEN
+ELSEIF( lattype=="hexagonal" .OR. lattype=="tetragonal" ) THEN
   IF( .NOT.ANY( LEN_TRIM(create_Miller)<=0 ) ) THEN
     !
     !Convert strings into proper vectors in ORIENT(:,:)
-    Nhkil=0
-    DO i=1,3
-      !Try reading Bravais-Miller [hkil] indices
-      CALL INDEX_MILLER_HCP(create_Miller(i),ORIENT(i,:),j)
-      IF( j==0 ) THEN
-        !Success: convert [hkil] into [uvw]
-        Nhkil=Nhkil+1
-        CALL HKIL2UVW(ORIENT(i,1),ORIENT(i,2),0.d0,ORIENT(i,3),u,v,w)
-        !Update system orientation in ORIENT
-        ORIENT(i,1) = u
-        ORIENT(i,2) = v
-        ORIENT(i,3) = w
-      ELSE
-        !Failed to read [hkil] => try reading [uvw]
-        CALL INDEX_MILLER(create_Miller(i),ORIENT(i,:),j)
+    IF( lattype=="hexagonal" ) THEN
+      !Hexagonal lattice: crystal directions can be [hkil] or [uvw]
+      Nhkil=0
+      DO i=1,3
+        !Try reading Bravais-Miller [hkil] indices
+        CALL INDEX_MILLER_HCP(create_Miller(i),ORIENT(i,:),j)
         IF( j==0 ) THEN
-          !Success reading [uvw]
-          !Check if it is not mixed up with some [hkil]
-          IF( Nhkil>0 ) THEN
-            !Error: can't mix up [hkil] and [uvw]
+          !Success: convert [hkil] into [uvw]
+          Nhkil=Nhkil+1
+          CALL HKIL2UVW(ORIENT(i,1),ORIENT(i,2),0.d0,ORIENT(i,3),u,v,w)
+          !Update system orientation in ORIENT
+          ORIENT(i,1) = u
+          ORIENT(i,2) = v
+          ORIENT(i,3) = w
+        ELSE
+          !Failed to read [hkil] => try reading [uvw]
+          CALL INDEX_MILLER(create_Miller(i),ORIENT(i,:),j)
+          IF( j==0 ) THEN
+            !Success reading [uvw]
+            !Check if it is not mixed up with some [hkil]
+            IF( Nhkil>0 ) THEN
+              !Error: can't mix up [hkil] and [uvw]
+              nerr = nerr+1
+              CALL ATOMSK_MSG(820,(/""/),(/0.d0/))
+              GOTO 1000
+            ENDIF
+          ELSE
+            !Reading [uvw] also failed: error
             nerr = nerr+1
-            CALL ATOMSK_MSG(820,(/""/),(/0.d0/))
+            CALL ATOMSK_MSG(817,(/create_Miller(i)/),(/0.d0/))
             GOTO 1000
           ENDIF
-        ELSE
-          !Reading [uvw] also failed: error
+        ENDIF
+      ENDDO
+    ELSE
+      !Tetragonal lattice: only [hkl] indices are allowed
+      DO i=1,3
+        CALL INDEX_MILLER(create_Miller(i),ORIENT(i,:),j)
+        IF( j.NE.0 ) THEN
+          !Reading [hkl] failed: error
           nerr = nerr+1
           CALL ATOMSK_MSG(817,(/create_Miller(i)/),(/0.d0/))
           GOTO 1000
         ENDIF
-      ENDIF
-    ENDDO
+      ENDDO
+    ENDIF
     !
     !Check that no vector in ORIENT is [000]
     IF( VECLENGTH(ORIENT(1,:))<1.d-12 .OR. VECLENGTH(ORIENT(2,:))<1.d-12 &
@@ -1688,7 +1828,7 @@ ELSEIF( hexagonal ) THEN
 ELSE
   !The lattice is not cubic nor hexagonal
   IF( .NOT.ANY( LEN_TRIM(create_Miller)<=0 ) ) THEN
-    !The user asked for a crystal orientation, but the lattice is not cubic
+    !The user asked for a crystal orientation, but it is not supported for this lattice type
     !=> write error message and exit
     CALL ATOMSK_MSG(4827,(/""/),(/0.d0/))
     nerr = nerr+1
@@ -1713,7 +1853,7 @@ CALL ATOMSK_MSG(999,(/msg/),(/0.d0/))
 CALL ATOMSK_MSG(4028,(/TRIM(comment(1))/),(/0.d0/))
 !
  comment(1) = '# '//TRIM(comment(1))
-CALL ATOMSK_MSG(4029,(/''/),(/0.d0/))
+CALL ATOMSK_MSG(4029,(/''/),(/DBLE(SIZE(P,1))/))
 !
 !
 !
