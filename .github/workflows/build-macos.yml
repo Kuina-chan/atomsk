@@ -1,33 +1,43 @@
-name: Build macOS arm64
+name: Atomsk-MacOS-M-build
 
 on:
-  workflow_dispatch:      # lets you trigger it manually from the Actions tab
+  workflow_dispatch:
   push:
-    branches: [ master ]
+    paths:
+      -'.github/workflows/build-macos.yml'
+      -'src/**'
 
 jobs:
-  build:
-    runs-on: macos-14      # Apple Silicon (M1) runner
+  build-arm64:
+    runs-on: macos-latest
     steps:
-      - name: Check out source
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: install gfortran
         run: |
-          brew install gfortran
+          brew install gcc
 
-      - name: Build Atomsk
+      - name: Compile for arm64
+        working-directory: src
         run: |
-          cd src
-          make -f Makefile.macos -j3 atomsk LAPACK="-framework Accelerate"
+          cat << 'EOF' > Makefile.macos
+          export
+          FORTRAN=gfortran
+          FFLAGS=-O2 -fopenmp
+          LAPACK=-framework Accelerate
+          include Makefile
+          EOF
+          make -f Makefile.macos atomsk
 
-      - name: Verify binary architecture
+      - name: Verification
+        working-directory: src
         run: |
-          file src/atomsk
-          otool -L src/atomsk
+          file atomsk
+          otool -L atomsk
 
-      - name: Upload binary
+      - name: Finishing the binary
         uses: actions/upload-artifact@v4
         with:
-          name: atomsk-macos-arm64
+          name: atomsk-macos-M-series
           path: src/atomsk
